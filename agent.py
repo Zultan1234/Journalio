@@ -138,13 +138,18 @@ def relevant_keys(errors):
 
 
 def degrade(spec, report, trace):
-    """Last resort without LLM: drop elements that still fail so the page stays correct and usable."""
+    """Last resort without LLM. Cosmetic parts that still fail (faulty extra views, readouts or stage references to
+    missing outputs) are removed. Failing scientific checks are NOT removed: either the equation or the check may be
+    wrong, so they stay on the page marked unresolved and the page does not claim that all checks passed."""
     errs = report.get("errors", [])
     removed = []
-    failing_checks = {e.split("'")[1] for e in errs if e.startswith("check '")}
+    failing_checks = {e.split("'")[1]: e for e in errs if e.startswith("check '")}
     if failing_checks:
-        spec["checks"] = [c for c in spec.get("checks", []) if c.get("name") not in failing_checks]
-        removed.append("checks %s" % sorted(failing_checks))
+        for c in spec.get("checks", []):
+            if c.get("name") in failing_checks:
+                c["unresolved"] = True
+                c["unresolved_detail"] = failing_checks[c.get("name")][:300]
+        trace.log("degrade", "unresolved_checks", "kept visible as unresolved", checks=sorted(failing_checks))
     bad_views = {e.split(" ")[1] for e in errs if e.startswith("view ")}
     if bad_views and len(spec.get("views", [])) > len(bad_views):
         spec["views"] = [v for v in spec["views"] if str(v.get("id")) not in bad_views]
@@ -352,7 +357,7 @@ def main():
     revisions = 0
     while not report["ok"] and revisions < MAX_REPAIRS:
         if revisions >= 1 and all(e.startswith("check '") for e in report["errors"]):
-            trace.log("repair", "skip", "only invariant checks still fail after a repair: dropping them is cheaper than another call")
+            trace.log("repair", "skip", "only invariant checks still fail after a repair: no further call; they stay visible as unresolved")
             break
         keys = relevant_keys(report["errors"])
         current = {k: spec.get(k) for k in keys}
