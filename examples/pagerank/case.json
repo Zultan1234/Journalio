@@ -1,5 +1,0 @@
-{
-  "source_url": "http://infolab.stanford.edu/~backrub/google.html",
-  "focus": "Section 2.1.1 (Description of PageRank Calculation). Explain how PageRank distributes each page's rank equally over its outgoing links, mixed with a damping factor d. Use a tiny web of 4 pages whose links the learner can toggle, plus a slider for d and for the number of iterations. Show the link matrix, the rank vector after each iteration and the final ranks. Guide the learner through a symmetric cycle (all ranks equal) and a page that many others link to. Include the random-surfer interpretation and the limitation of pages with no outgoing links. Check that, with the normalized form, ranks stay non-negative and sum to one.",
-  "audience": "engineering undergraduate who knows matrices and basic probability"
-}

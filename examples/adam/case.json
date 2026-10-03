@@ -1,5 +1,0 @@
-{
-  "source_url": "https://arxiv.org/abs/1412.6980",
-  "focus": "Section 2 Algorithm 1 and Section 3 (initialization bias correction) of Adam. Explain how Adam keeps exponential moving averages of the gradient (m) and squared gradient (v), why they are biased toward zero at the start, and how dividing by (1 - beta^t) corrects this. Use a short sequence of scalar gradients the learner can edit, with sliders for beta1, beta2 and the step size alpha. Show m, v, the bias-corrected m_hat, v_hat and the parameter update at each step. Guide the learner through constant gradients (bias correction gives exactly the gradient) and a sign-flipping gradient. Check that m_hat equals g for constant gradient g and that the effective step magnitude stays near alpha.",
-  "audience": "engineering undergraduate familiar with gradient descent"
-}

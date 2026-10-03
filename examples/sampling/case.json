@@ -1,5 +1,0 @@
-{
-  "source_url": "https://doi.org/10.1109/JRPROC.1949.232969",
-  "focus": "The sampling theorem (Shannon, 'Communication in the Presence of Noise', 1949, Theorem 1). Explain why a signal containing no frequencies above W is completely determined by samples spaced 1/(2W) apart, and what goes wrong (aliasing) when sampling slower. Let the learner change the signal frequency and the sampling rate. Show the continuous sinusoid, the sample points, and the lowest-frequency sinusoid through the same samples (the alias). Guide the learner through sampling above the Nyquist rate and below it. Check that the reconstructed alias frequency equals the true frequency whenever the sampling rate exceeds twice the signal frequency, and that alias and signal agree at every sample instant.",
-  "audience": "engineering undergraduate who has seen sinusoids and frequency"
-}

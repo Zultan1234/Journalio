@@ -1,5 +1,0 @@
-{
-  "source_url": "https://arxiv.org/abs/1207.0580",
-  "focus": "Dropout as described in the introduction: randomly omitting hidden units during training and halving outgoing weights at test time (the 'mean network'). Explain why scaling by the retention probability makes the test-time output equal to the expected training-time output for a single linear unit. Use a small layer of hidden activations and weights the learner can edit, a slider for the retention probability p, and a seed-controlled set of sampled dropout masks. Show individual masked outputs, their running average over many masks, and the mean-network output. Guide the learner through p = 1 (no dropout) and a small p. Check that the mean-network output equals p times the full sum and that the average over all 2^n masks equals it exactly.",
-  "audience": "engineering undergraduate who knows weighted sums and expected values"
-}

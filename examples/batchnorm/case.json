@@ -1,5 +1,0 @@
-{
-  "source_url": "https://arxiv.org/abs/1502.03167",
-  "focus": "Section 3, Algorithm 1 (Batch Normalizing Transform). Explain how a mini-batch of activations is normalized using the batch mean and variance and then scaled and shifted by learnable gamma and beta. Let the learner edit a small mini-batch and change gamma, beta and epsilon. Show the batch mean, variance, normalized values and outputs. Guide them through a batch with an outlier and a batch of identical values. Check that normalized values have mean 0 and (with epsilon = 0) variance 1, and that gamma = sqrt(var + eps), beta = mean recovers the input.",
-  "audience": "engineering undergraduate who knows what a neural network layer is"
-}

@@ -1,5 +1,0 @@
-{
-  "source_url": "https://arxiv.org/html/1706.03762v7",
-  "focus": "Section 3.5 Positional Encoding. Explain the sinusoidal positional encodings: each dimension is a sinusoid whose wavelength grows geometrically with the dimension index. Let the learner change the model dimension d_model, the position and the dimension index. Show the encoding vector for a position, the heatmap of positions x dimensions, and the wavelengths. Guide the learner through low versus high dimensions (fast versus slow oscillation) and through the dot product between encodings of nearby versus distant positions. Check that every value lies in [-1, 1] and that sin^2 + cos^2 = 1 for each frequency pair.",
-  "audience": "engineering undergraduate who has seen sine waves and vectors"
-}
