@@ -87,21 +87,38 @@ var JCore = (function () {
     return out;
   }
 
+  /* Accept a bare function body, "function(inp){...}", "function compute(inp){...}" or "(inp)=>{...}". */
+  var FN_RE = /^\s*(?:async\s+)?(?:function\b|\(?\s*[A-Za-z_$][\w$]*\s*(?:,\s*[A-Za-z_$][\w$]*\s*)*\)?\s*=>|\(\s*\)\s*=>)/;
+  function makeFn(args, src, label, errors) {
+    src = String(src || "").trim().replace(/^```(?:js|javascript)?\s*/, "").replace(/\s*```$/, "").replace(/;\s*$/, "");
+    var bodies = [];
+    if (FN_RE.test(src)) bodies.push("var __f = (" + src + ");\nreturn __f(" + args.join(", ") + ");");
+    bodies.push(src);
+    var firstErr = null;
+    for (var i = 0; i < bodies.length; i++) {
+      try { return new Function(args.join(","), '"use strict";\n' + bodies[i]); }
+      catch (e) { if (!firstErr) firstErr = e; }
+    }
+    errors.push(label + ": syntax error: " + (firstErr && firstErr.message));
+    return null;
+  }
+
   function compile(spec) {
     var res = { compute: null, draws: {}, checks: [], errors: [] };
-    try {
-      /* jshint evil:true */
-      res.compute = new Function("inp", "Math", '"use strict";\n' + spec.compute);
-    } catch (e) { res.errors.push("compute: syntax error: " + e.message); }
+    res.compute = makeFn(["inp", "Math"], spec.compute, "compute", res.errors);
     (spec.views || []).forEach(function (v, i) {
       if (v.type === "canvas") {
-        try { res.draws[v.id || ("v" + i)] = new Function("ctx", "out", "inp", "W", "H", '"use strict";\n' + (v.draw || "")); }
-        catch (e) { res.errors.push("view " + (v.id || i) + " draw: syntax error: " + e.message); }
+        var f = makeFn(["ctx", "out", "inp", "W", "H"], v.draw, "view " + (v.id || i) + " draw", res.errors);
+        if (f) res.draws[v.id || ("v" + i)] = f;
       }
     });
     (spec.checks || []).forEach(function (c, i) {
-      try { res.checks.push({ name: c.name || ("check " + (i + 1)), fn: new Function("out", "inp", "Math", '"use strict";\nreturn (' + c.expr + ");"), spec: c }); }
-      catch (e) { res.errors.push("check '" + (c.name || i) + "': syntax error: " + e.message); res.checks.push({ name: c.name, fn: null, spec: c }); }
+      var expr = String(c.expr || "").trim().replace(/;\s*$/, "");
+      var src = FN_RE.test(expr) ? expr : (/^return\b/.test(expr) || /;\s*return\b/.test(expr) ? expr : "return (" + expr + ");");
+      var errs = [];
+      var fn = makeFn(["out", "inp", "Math"], src, "check '" + (c.name || i) + "'", errs);
+      errs.forEach(function (e) { res.errors.push(e); });
+      res.checks.push({ name: c.name || ("check " + (i + 1)), fn: fn, spec: c });
     });
     return res;
   }
@@ -185,6 +202,9 @@ var JCore = (function () {
       (v.hlines || []).forEach(function (p) { add(p.key, w); });
       (v.columns || []).forEach(function (c) { add(c.key, w); });
       if (typeof v.segments === "string") add(v.segments, w);
+      add(v.max_key, w);
+      (v.y || []).forEach(function (y) { add(typeof y === "string" ? y : y.key, w); });
+      (v.points || []).forEach(function (p) { if (typeof p.labels === "string") add(p.labels, w); });
     });
     return refs;
   }

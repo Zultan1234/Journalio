@@ -138,7 +138,8 @@
     stages.forEach(function (s, i) {
       var node = el("button", { "class": "stage", id: "stage-" + s.id, title: "Click to inspect this intermediate quantity", onclick: function () { inspect(s.id); } }, [
         el("div", { "class": "sl", html: rich(s.label) }),
-        el("div", { "class": "sx", html: rich(s.expr || "") })
+        el("div", { "class": "sx", html: rich(s.expr || "") }),
+        el("div", { "class": "sv", id: "sv-" + s.id })
       ]);
       m.appendChild(node);
       if (i < stages.length - 1) m.appendChild(el("div", { "class": "arrow", text: "→" }));
@@ -152,6 +153,31 @@
     (s.keys || []).forEach(function (k) { html += "<div class='kv'><span class='k'>" + rich(k) + "</span> = " + valueHtml(val(k)) + "</div>"; });
     $("inspect").innerHTML = html;
     $("inspect").dataset.stage = id;
+  }
+  function miniViz(v) {
+    if (typeof v === "number") return '<span class="mv">' + fmt(v, 3) + "</span>";
+    if (typeof v === "boolean") return '<span class="mv">' + v + "</span>";
+    if (!Array.isArray(v) || !v.length) return "";
+    var w = 84, h = 24, out = '<svg class="spark" viewBox="0 0 ' + w + " " + h + '" width="' + w + '" height="' + h + '">';
+    if (Array.isArray(v[0])) {
+      var r = v.length, c = v[0].length, flat = [].concat.apply([], v).filter(isFinite);
+      var mx = Math.max.apply(null, flat.map(Math.abs)) || 1, cw = Math.min(w / c, 14), ch = h / r;
+      v.forEach(function (row, i) { row.forEach(function (x, j) { out += '<rect x="' + (j * cw) + '" y="' + (i * ch) + '" width="' + (cw - 1) + '" height="' + (ch - 1) + '" fill="' + (x < 0 ? "var(--s2)" : "var(--s1)") + '" fill-opacity="' + (0.12 + 0.88 * Math.abs(x) / mx).toFixed(2) + '"/>'; }); });
+    } else {
+      var nums = v.map(Number).filter(isFinite);
+      if (!nums.length) return "";
+      var m2 = Math.max.apply(null, nums.map(Math.abs)) || 1, n = Math.min(v.length, 40), bw = w / n;
+      var hasNeg = nums.some(function (x) { return x < 0; }), base = hasNeg ? h / 2 : h;
+      for (var i = 0; i < n; i++) { var x = Number(v[i]); if (!isFinite(x)) continue; var bh = Math.abs(x) / m2 * (hasNeg ? h / 2 : h); out += '<rect x="' + (i * bw + 0.5) + '" y="' + (x >= 0 ? base - bh : base) + '" width="' + Math.max(bw - 1.5, 1) + '" height="' + Math.max(bh, 0.6) + '" fill="var(--s1)"/>'; }
+    }
+    return out + "</svg>";
+  }
+  function renderStageValues() {
+    (SPEC.stages || []).forEach(function (s) {
+      var box = $("sv-" + s.id); if (!box) return;
+      var keys = (s.keys || []).filter(function (k) { return val(k) !== undefined; }).slice(0, 2);
+      box.innerHTML = keys.map(function (k) { return miniViz(val(k)); }).join(" ");
+    });
   }
   function valueHtml(v) {
     if (Array.isArray(v)) {
@@ -172,6 +198,7 @@
       if (c.type === "slider") {
         var out = el("output", { "class": "cv", id: "cv-" + c.id });
         head.appendChild(out);
+        head.appendChild(el("button", { "class": "anim", type: "button", title: "Animate: sweep this input from min to max and watch everything downstream", "aria-label": "Animate " + (c.label || c.id), text: anim.id === c.id ? "■" : "▶", onclick: function (ev) { ev.preventDefault(); toggleAnim(c); } }));
         var r = el("input", { type: "range", min: c.min, max: c.max, step: c.step || (c.max - c.min) / 100, value: state.inp[c.id], "aria-label": c.label || c.id });
         r.addEventListener("input", function () { setInput(c.id, Number(r.value)); });
         wrap.appendChild(r);
@@ -230,6 +257,27 @@
     });
     syncControlLabels();
   }
+  var anim = { id: null, timer: null };
+  function toggleAnim(c) {
+    var was = anim.id;
+    stopAnim();
+    if (was === c.id) return;
+    anim.id = c.id;
+    var steps = isIntSlider(c) ? Math.round(c.max - c.min) : 60, k = 0, delay = isIntSlider(c) ? Math.max(350, 3000 / Math.max(steps, 1)) : 55;
+    state.animating = true;
+    renderControls();
+    anim.timer = setInterval(function () {
+      var x = c.min + (c.max - c.min) * k / steps;
+      setInput(c.id, x);
+      var r = document.querySelector("#ctrl-" + c.id + " input[type=range]"); if (r) r.value = x;
+      if (++k > steps) { stopAnim(); }
+    }, delay);
+  }
+  function stopAnim() {
+    if (anim.timer) clearInterval(anim.timer);
+    var had = anim.id; anim.id = null; anim.timer = null; state.animating = false;
+    if (had) renderControls();
+  }
   function syncControlLabels() {
     (SPEC.controls || []).forEach(function (c) {
       if (c.type === "slider") { var o = $("cv-" + c.id); if (o) o.textContent = fmt(state.inp[c.id], 4) + (c.unit ? " " + c.unit : ""); }
@@ -275,7 +323,7 @@
       var b = $("vb-" + v._id);
       try {
         b.innerHTML = "";
-        ({ bars: drawBars, line: drawLine, heatmap: drawHeat, scatter: drawScatter, table: drawTable, canvas: drawCanvas }[v.type] || function () {})(b, v);
+        ({ bars: drawBars, line: drawLine, heatmap: drawHeat, scatter: drawScatter, table: drawTable, canvas: drawCanvas, sweep: drawSweep, stacked: drawStacked }[v.type] || function () {})(b, v);
       } catch (e) { b.innerHTML = "<div class='err'>View error: " + rich(e.message) + "</div>"; }
     });
   }
@@ -324,14 +372,32 @@
   function legend(series) {
     return el("div", { "class": "legend", html: series.map(function (s, i) { return '<span><i style="background:' + PAL[i % PAL.length] + '"></i>' + rich(s.label || s.key) + "</span>"; }).join("") });
   }
+  function arr(x) { return Array.isArray(x) ? x : (x === undefined || x === null ? [] : [x]); }
   function drawLine(b, v) {
-    var xs = (val(v.x) || []).map(Number);
-    var series = v.series || [];
-    var ys = series.map(function (s) { return (val(s.key) || []).map(Number); });
-    var pts = (v.points || []).map(function (p) { return { x: Number(val(p.x)), y: Number(val(p.y)), label: p.label }; }).filter(function (p) { return isFinite(p.x) && isFinite(p.y); });
-    var allY = [].concat.apply([], ys).concat(pts.map(function (p) { return p.y; })).filter(isFinite);
-    (v.hlines || []).forEach(function (l) { var y = Number(val(l.key)); if (isFinite(y)) allY.push(y); });
-    var xmin = C.isNum(v.xmin) ? v.xmin : Math.min.apply(null, xs), xmax = C.isNum(v.xmax) ? v.xmax : Math.max.apply(null, xs);
+    var xs = arr(val(v.x)).map(Number);
+    var series = (v.series || []).map(function (sr) { return { label: sr.label, dashed: sr.dashed, y: arr(val(sr.key)).map(Number) }; });
+    var pts = [];
+    (v.points || []).forEach(function (p) {
+      var px = val(p.x), py = val(p.y);
+      if (Array.isArray(px) && Array.isArray(py)) {
+        var labs = labelsFor(p.labels, px.length);
+        px.forEach(function (x, i) { pts.push({ x: Number(x), y: Number(py[i]), label: (p.label ? p.label + " " : "") + labs[i] }); });
+      } else pts.push({ x: Number(px), y: Number(py), label: p.label });
+    });
+    var vl = (v.vlines || []).map(function (l) { return { v: Number(val(l.key)), label: l.label }; });
+    var hl = (v.hlines || []).map(function (l) { return { v: Number(val(l.key)), label: l.label }; });
+    lineChart(b, v, xs, series, pts, vl, hl);
+  }
+  /* generic line chart: xs, series [{label,y,dashed}], points [{x,y,label}], vlines/hlines [{v,label}] */
+  function lineChart(b, v, xs, series, pts, vlines, hlines, opts) {
+    opts = opts || {};
+    pts = pts.filter(function (p) { return isFinite(p.x) && isFinite(p.y); });
+    var allY = [].concat.apply([], series.map(function (s) { return s.y; })).concat(pts.map(function (p) { return p.y; })).filter(isFinite);
+    hlines.forEach(function (l) { if (isFinite(l.v)) allY.push(l.v); });
+    if (!allY.length) allY = [0, 1];
+    var xsF = xs.filter(isFinite).concat(pts.map(function (p) { return p.x; }));
+    var xmin = C.isNum(v.xmin) ? v.xmin : Math.min.apply(null, xsF), xmax = C.isNum(v.xmax) ? v.xmax : Math.max.apply(null, xsF);
+    if (!isFinite(xmin) || !isFinite(xmax)) { xmin = 0; xmax = 1; }
     if (!(xmax > xmin)) { xmax = xmin + 1; }
     var yr = niceRange(C.isNum(v.ymin) ? v.ymin : Math.min.apply(null, allY), C.isNum(v.ymax) ? v.ymax : Math.max.apply(null, allY));
     if (C.isNum(v.ymin)) yr.lo = v.ymin; if (C.isNum(v.ymax)) yr.hi = v.ymax;
@@ -343,19 +409,76 @@
     var xr = niceRange(xmin, xmax);
     for (var t = xr.lo; t <= xr.hi + 1e-9; t += xr.step) { if (t < xmin - 1e-9 || t > xmax + 1e-9) continue; s.appendChild(svg("text", { x: X(t), y: y0 + h + 16, "text-anchor": "middle", "class": "tick" }, fmt(t, 3))); }
     s.appendChild(svg("line", { x1: x0, x2: x0 + w, y1: y0 + h, y2: y0 + h, "class": "axis" }));
-    (v.hlines || []).forEach(function (l) { var y = Number(val(l.key)); if (!isFinite(y)) return; s.appendChild(svg("line", { x1: x0, x2: x0 + w, y1: Y(y), y2: Y(y), "class": "refl" })); s.appendChild(svg("text", { x: x0 + w - 4, y: Y(y) - 4, "text-anchor": "end", "class": "rl" }, (l.label || "") + " " + fmt(y))); });
-    (v.vlines || []).forEach(function (l) { var x = Number(val(l.key)); if (!isFinite(x)) return; s.appendChild(svg("line", { x1: X(x), x2: X(x), y1: y0, y2: y0 + h, "class": "refl" })); s.appendChild(svg("text", { x: X(x) + 4, y: y0 + 12, "class": "rl" }, (l.label || "") + " " + fmt(x))); });
-    ys.forEach(function (y, si) {
+    hlines.forEach(function (l) { if (!isFinite(l.v)) return; s.appendChild(svg("line", { x1: x0, x2: x0 + w, y1: Y(l.v), y2: Y(l.v), "class": "refl" })); s.appendChild(svg("text", { x: x0 + w - 4, y: Y(l.v) - 4, "text-anchor": "end", "class": "rl" }, (l.label || "") + " " + fmt(l.v))); });
+    vlines.forEach(function (l) { if (!isFinite(l.v)) return; s.appendChild(svg("line", { x1: X(l.v), x2: X(l.v), y1: y0, y2: y0 + h, "class": "refl" })); s.appendChild(svg("text", { x: X(l.v) + 4, y: y0 + 12, "class": "rl" }, (l.label || "") + " " + fmt(l.v))); });
+    series.forEach(function (sr, si) {
       var d = "";
-      for (var i = 0; i < Math.min(xs.length, y.length); i++) { if (!isFinite(y[i]) || !isFinite(xs[i])) continue; d += (d ? "L" : "M") + X(xs[i]).toFixed(1) + "," + Y(y[i]).toFixed(1); }
-      s.appendChild(svg("path", { d: d, "class": "ln", stroke: PAL[si % PAL.length], "stroke-dasharray": series[si].dashed ? "6 4" : "" }));
+      for (var i = 0; i < Math.min(xs.length, sr.y.length); i++) { if (!isFinite(sr.y[i]) || !isFinite(xs[i])) { d += ""; continue; } d += (d ? "L" : "M") + X(xs[i]).toFixed(1) + "," + Y(sr.y[i]).toFixed(1); }
+      s.appendChild(svg("path", { d: d, "class": "ln", stroke: PAL[si % PAL.length], "stroke-dasharray": sr.dashed ? "6 4" : "" }));
+      if (opts.markers) for (var j = 0; j < Math.min(xs.length, sr.y.length); j++) if (isFinite(sr.y[j])) s.appendChild(svg("circle", { cx: X(xs[j]), cy: Y(sr.y[j]), r: 3, fill: PAL[si % PAL.length] }));
     });
-    pts.forEach(function (p) {
-      s.appendChild(svg("circle", { cx: X(p.x), cy: Y(p.y), r: 6, "class": "pt" }));
-      s.appendChild(svg("text", { x: X(p.x) + 9, y: Y(p.y) - 8, "class": "rl" }, (p.label ? p.label + " " : "") + "(" + fmt(p.x) + ", " + fmt(p.y) + ")"));
+    var many = pts.length > 3;
+    pts.forEach(function (p, i) {
+      if (opts.dropLines !== false) s.appendChild(svg("line", { x1: X(p.x), x2: X(p.x), y1: Y(p.y), y2: y0 + h, "class": "drop" }));
+      s.appendChild(svg("circle", { cx: X(p.x), cy: Y(p.y), r: many ? 5 : 6, "class": "pt", fill: p.color || (many ? PAL[i % PAL.length] : "") }));
+      var ly = many ? Y(p.y) - 8 - (i % 2) * 12 : (i % 2 ? Y(p.y) + 18 : Y(p.y) - 8);
+      s.appendChild(svg("text", { x: X(p.x) + 8, y: ly, "class": "rl" }, (p.label ? p.label + " " : "") + (many ? "" : "(" + fmt(p.x) + ", " + fmt(p.y) + ")")));
     });
     b.appendChild(s);
-    if (series.length > 1 || (series[0] && series[0].label)) b.appendChild(legend(series));
+    var legendItems = series.filter(function (sr) { return sr.label; });
+    if (legendItems.length > 1 || (legendItems.length === 1 && !opts.noLegend)) b.appendChild(legend(series));
+  }
+
+  /* sweep: vary one slider across its range with everything else fixed, recompute with the real model */
+  function drawSweep(b, v) {
+    var c = ctrlById[v.control];
+    if (!c || c.type !== "slider") throw new Error("sweep needs a slider control");
+    var ys = (v.y || []).map(function (y) { return typeof y === "string" ? { key: y } : y; });
+    var integer = isIntSlider(c);
+    var n = integer ? Math.min(Math.round(c.max - c.min) + 1, 200) : (v.samples || 81);
+    var xs = [], series = ys.map(function (y) { return { label: y.label || y.key, dashed: y.dashed, y: [] }; });
+    for (var i = 0; i < n; i++) {
+      var x = integer ? c.min + i : c.min + (c.max - c.min) * i / (n - 1);
+      var inp = C.clone(state.inp); inp[c.id] = x;
+      var o;
+      try { o = C.run(comp, C.fixInputs(SPEC, inp)); } catch (e) { o = {}; }
+      xs.push(x);
+      ys.forEach(function (y, k) { var yy = Number(C.getPath(o, y.key)); series[k].y.push(isFinite(yy) ? yy : NaN); });
+    }
+    var cur = state.inp[c.id];
+    var pts = ys.map(function (y, k) { return { x: cur, y: Number(val(y.key)), label: "now", color: PAL[k % PAL.length] }; });
+    var vv = Object.assign({}, v, { xlabel: v.xlabel || stripTags(c.label || c.id), ylabel: v.ylabel || (ys.length === 1 ? stripTags(ys[0].label || ys[0].key) : "") });
+    lineChart(b, vv, xs, series, pts, [], (v.hlines || []).map(function (l) { return { v: Number(val(l.key)), label: l.label }; }), { markers: integer && n <= 25, dropLines: true, noLegend: ys.length === 1 });
+  }
+  function stripTags(x) { return String(x || "").replace(/<[^>]+>/g, ""); }
+  function isIntSlider(c) { return !!(c.integer || (C.isNum(c.step) && c.step >= 1 && Math.round(c.step) === c.step && Math.round(c.min) === c.min)); }
+
+  /* stacked: parts of a total laid end to end (accumulation), optional maximum reference */
+  function drawStacked(b, v) {
+    var parts = arr(val(v.key)).map(Number);
+    var labs = labelsFor(v.labels, parts.length);
+    var total = parts.reduce(function (a, x) { return a + (isFinite(x) ? Math.max(0, x) : 0); }, 0);
+    var ref = v.max_key ? Number(val(v.max_key)) : NaN;
+    var scaleMax = Math.max(total, isFinite(ref) ? ref : 0) || 1;
+    var H = 120, x0 = 14, w = W - 28, y0 = 30, bh = 40;
+    var s = svg("svg", { viewBox: "0 0 " + W + " " + H, "class": "chart", role: "img", "aria-label": v.title || "stacked contributions" });
+    var x = x0;
+    parts.forEach(function (p, i) {
+      if (!(p > 0)) return;
+      var ww = p / scaleMax * w;
+      s.appendChild(svg("rect", { x: x, y: y0, width: Math.max(ww - 1, 0.5), height: bh, fill: PAL[i % PAL.length], "class": "seg-r" }));
+      if (ww > 34) s.appendChild(svg("text", { x: x + ww / 2, y: y0 + bh / 2 + 4, "text-anchor": "middle", "class": "inbar" }, labs[i]));
+      if (ww > 34) s.appendChild(svg("text", { x: x + ww / 2, y: y0 + bh + 14, "text-anchor": "middle", "class": "tick" }, fmt(p, v.digits !== undefined ? v.digits : 3)));
+      x += ww;
+    });
+    s.appendChild(svg("line", { x1: x0 + total / scaleMax * w, x2: x0 + total / scaleMax * w, y1: y0 - 10, y2: y0 + bh + 2, "class": "axis" }));
+    s.appendChild(svg("text", { x: Math.min(x0 + total / scaleMax * w, W - 120), y: y0 - 14, "class": "rl" }, (v.total_label || "total") + " = " + fmt(total, 4) + (v.unit ? " " + v.unit : "")));
+    if (isFinite(ref)) {
+      var xr = x0 + ref / scaleMax * w;
+      s.appendChild(svg("rect", { x: x0, y: y0, width: ref / scaleMax * w, height: bh, "class": "maxbox" }));
+      s.appendChild(svg("text", { x: Math.max(xr - 4, 60), y: y0 + bh + 30, "text-anchor": "end", "class": "rl" }, (v.max_label || "maximum") + " = " + fmt(ref, 4)));
+    }
+    b.appendChild(s);
   }
   function heatColor(t, div) {
     if (div) { // diverging blue-white-red, t in [-1,1]
@@ -447,7 +570,7 @@
     (SPEC.readouts || []).forEach(function (r) {
       var v = val(r.key);
       var ch = changed.indexOf(r.key.split(".")[0]) >= 0;
-      box.appendChild(el("div", { "class": "ro" + (ch ? " flash" : "") }, [
+      box.appendChild(el("div", { "class": "ro" + (ch && !state.animating ? " flash" : "") }, [
         el("div", { "class": "rk", html: rich(r.label || r.key) }),
         el("div", { "class": "rv", html: Array.isArray(v) ? valueHtml(v) : fmt(v, r.digits !== undefined ? r.digits : 4) + (r.unit ? ' <span class="u">' + rich(r.unit) + "</span>" : "") })
       ]));
@@ -459,11 +582,11 @@
     var stages = (SPEC.stages || []);
     var hit = stages.filter(function (s) { return (s.keys || []).some(function (k) { return changed.indexOf(k.split(".")[0]) >= 0; }); });
     document.querySelectorAll(".stage").forEach(function (n) { n.classList.remove("hot"); void n.offsetWidth; });
-    hit.forEach(function (s) { var n = $("stage-" + s.id); if (n) n.classList.add("hot"); });
+    if (!state.animating) hit.forEach(function (s) { var n = $("stage-" + s.id); if (n) n.classList.add("hot"); });
     (SPEC.views || []).forEach(function (v) {
-      var keys = [v.key, v.x].concat((v.series || []).map(function (s) { return s.key; })).filter(Boolean);
-      var on = keys.some(function (k) { return changed.indexOf(String(k).split(".")[0]) >= 0; }) || (v.type === "canvas" && changed.length);
-      var n = $("view-" + v._id); if (n) { n.classList.remove("hot"); void n.offsetWidth; if (on) n.classList.add("hot"); }
+      var keys = [v.key, v.x, v.max_key].concat((v.series || []).map(function (s) { return s.key; })).concat((v.points || []).map(function (p) { return p.y; })).concat((v.columns || []).map(function (c) { return c.key; })).filter(Boolean);
+      var on = keys.some(function (k) { return changed.indexOf(String(k).split(".")[0]) >= 0; }) || ((v.type === "canvas" || v.type === "sweep") && changed.length);
+      var n = $("view-" + v._id); if (n) { n.classList.remove("hot"); void n.offsetWidth; if (on && !state.animating) n.classList.add("hot"); }
     });
     if (!state.lastControl) {
       box.innerHTML = "<b>Why did this change?</b><p class='muted'>Move any control. This panel will trace the causal chain: control → changed intermediate quantities → visual.</p>";
@@ -503,6 +626,7 @@
     } catch (e) { err.style.display = "block"; err.textContent = "Calculation error: " + e.message; return; }
     var changed = state.prev ? C.changedKeys(state.prev, state.out) : [];
     renderReadouts(changed);
+    renderStageValues();
     drawViews();
     whyPanel(changed);
     renderChecks();

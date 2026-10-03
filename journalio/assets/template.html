@@ -72,7 +72,7 @@ table.mini td{border:1px solid var(--line);padding:1px 6px;font-size:.85rem}
 .ro .rv{font-size:1.25rem;font-weight:700;font-variant-numeric:tabular-nums;overflow-x:auto}
 .ro .u{font-size:.8rem;font-weight:500;color:var(--muted)}
 .ro.flash{animation:hot 1.2s ease-out}
-#views{display:grid;grid-template-columns:repeat(auto-fit,minmax(380px,1fr));gap:12px}
+#views{display:grid;grid-template-columns:repeat(auto-fit,minmax(520px,1fr));gap:12px}
 @media (max-width:520px){#views{grid-template-columns:1fr}}
 #views>*{min-width:0}.vb{overflow-x:auto}
 .view{margin:0}
@@ -128,6 +128,14 @@ details summary{cursor:pointer;color:var(--acc);font-weight:600}
 .err,#runerr{color:var(--bad);font-weight:600}
 #runerr{display:none;background:var(--card);border:1px solid var(--bad);padding:8px;border-radius:8px;margin-bottom:8px}
 .labhead{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:4px}
+.sv{margin-top:3px;min-height:4px;display:flex;gap:6px;align-items:center}
+.spark{display:block}
+.mv{font-variant-numeric:tabular-nums;font-weight:700;font-size:.9rem;color:var(--acc)}
+.anim{margin-left:auto;margin-right:6px;border:1px solid var(--acc);background:transparent;color:var(--acc);border-radius:6px;font-size:.75rem;line-height:1;padding:3px 7px;cursor:pointer}
+.anim:hover{background:var(--accbg)}
+.drop{stroke:var(--muted);stroke-width:1;stroke-dasharray:2 3;opacity:.7}
+.inbar{font-size:12px;font-weight:700;fill:#fff!important}
+.maxbox{fill:none;stroke:var(--fg);stroke-width:1.5;stroke-dasharray:6 4}
 footer{margin-top:40px;font-size:.8rem;color:var(--muted)}
 </style>
 </head>

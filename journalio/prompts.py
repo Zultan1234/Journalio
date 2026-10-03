@@ -20,9 +20,9 @@ SPEC SCHEMA (all keys required unless marked optional). Text fields: short plain
 "equations": [{"expr","ref","tag","note"}],              // ref e.g. "Sec. 3.2.1, Eq. (1)" only if real
 "stages": [{"id","label","expr","desc","keys":[output keys shown at this stage]}],  // 4-6 stages, input->output order
 "controls": [ ... ],   // 2-5 controls, see types
-"compute": str,        // JS FUNCTION BODY (ES5 ok). Receives `inp` (object: control id -> value). Must `return {...}` of numbers / 1-D arrays / 2-D arrays only. Pure, deterministic, no DOM.
+"compute": str,        // JS FUNCTION BODY only (no "function(inp){" wrapper), ES5 ok. Receives `inp` (object: control id -> value). Must `return {...}` of numbers / 1-D arrays / 2-D arrays only. Pure, deterministic, no DOM.
 "readouts": [{"key","label","digits","unit"}],          // 2-5 headline scalars
-"views": [ ... ],      // 2-4 visuals, see types
+"views": [ ... ],      // 3-4 visuals, see types
 "first_action": {"try","watch","why","preset":{}},
 "explorations": [ exactly 2 x {"title","change","observe","why","preset":{}} ],  // #1 simple/symmetric case, #2 extreme/limiting/nonlinear case
 "limitation": {"kind":"assumption"|"misconception","title","claim","try","observe","explain","preset":{}},  // make it testable in the lab
@@ -40,15 +40,18 @@ CONTROL TYPES (id: short js identifier):
 
 VIEW TYPES (keys refer to fields returned by compute; "stage": stage id; "caption": what to WATCH):
 - bars: {"type":"bars","title","key"|"series":[{"key","label"}],"labels":array|key,"ymin","ymax"(opt),"highlight"(opt key of index),"ref_line"(opt number),"xlabel","ylabel","digits","stage","caption"}
-- line: {"type":"line","title","x":key,"series":[{"key","label","dashed"(opt)}],"points":[{"x":key,"y":key,"label"}],"vlines":[{"key","label"}],"hlines":[{"key","label"}],"xlabel","ylabel","ymin","ymax"(opt),"stage","caption"}  // curves sampled in compute (e.g. 60-200 pts); points mark the current operating point
+- line: {"type":"line","title","x":key,"series":[{"key","label","dashed"(opt)}],"points":[{"x":key,"y":key,"label","labels"(opt)}],"vlines":[{"key","label"}],"hlines":[{"key","label"}],"xlabel","ylabel","ymin","ymax"(opt),"stage","caption"}  // x and series are ARRAYS sampled in compute (60-200 pts) over a function's domain; points mark where the current inputs sit (point x/y may be scalars, or equal-length arrays to mark several, e.g. every p_i on the curve -p log p)
+- sweep: {"type":"sweep","title","control":slider id,"y":[{"key":scalar key,"label","dashed"(opt)}],"hlines"(opt),"xlabel","ylabel","ymin","ymax"(opt),"stage","caption"}  // the renderer re-runs compute across the slider's range (others fixed) and marks the current value: the cheapest way to show output-vs-input; do NOT sample this yourself
+- stacked: {"type":"stacked","title","key"(1-D parts),"labels","total_label","unit","max_key"(opt scalar key, e.g. a theoretical maximum),"max_label","digits","stage","caption"}  // parts laid end to end = total (accumulation of contributions)
 - heatmap: {"type":"heatmap","title","key"(2-D),"row_labels","col_labels","row_sums"(opt bool),"digits","diverging"(opt),"stage","caption"}
 - scatter: {"type":"scatter","title","key"(array of [x,y]),"labels","arrows"(bool: draw as vectors from origin),"segments"(opt key of [[x1,y1,x2,y2],...]),"equal_axes"(opt),"xlabel","ylabel","stage","caption"}
 - table: {"type":"table","title","columns":[{"key","label","digits"}],"total_row"(opt bool),"stage","caption"}  // each key a 1-D array, same length
 - canvas (only if nothing above fits, e.g. geometry/sliding window/diagram): {"type":"canvas","title","height":200-320,"draw":"JS body using ctx,out,inp,W,H (W=560); label everything","stage","caption"}
-Choose visuals by mechanism: distribution->bars, matrix interaction->heatmap, function/limit/trade-off->line with current point, vectors/geometry->scatter, per-term contributions->table with total_row or bars. Show intermediates, not only the final answer.
+Choose visuals by mechanism: distribution->bars, matrix interaction->heatmap, nonlinear function->line curve with the current operating point(s) marked, output-vs-parameter/limit/trade-off->sweep, vectors/geometry->scatter, contributions summing to a total->stacked (+ table with total_row for exact numbers). Use 3-4 complementary views: (1) the key intermediate quantity, (2) the core relationship as a curve or sweep showing where the learner is, (3) how parts combine into the output. Show intermediates, not only the final answer. Never draw a line over a scalar x.
 
 COMPUTE RULES: handle every valid input incl. all-equal, zeros (0·log0 = 0), dominant entries, slider extremes, all-zero weight vectors (fallback e.g. uniform, and explain); avoid division by zero; no NaN/Infinity anywhere in the returned object; no Math.random. Return every key used by stages/readouts/views/checks. Labels arrays may be returned too (e.g. "names":["x1","x2"]) only as numbers-or-strings arrays.
 CHECKS: must hold for ALL valid inputs (the validator runs them on ~20 states: defaults, min/max of each slider, toggles, equal/one-hot/ramp vectors, all presets). Write conditional facts as implications, e.g. "!(inp.n===4 && <uniform>) || Math.abs(out.H-2)<1e-9". Recompute independently where possible (e.g. output equals weighted sum, probabilities sum to 1, entropy ≥0 and ≤ log₂n, invariance to adding a constant). Tolerance 1e-9 relative/absolute.
+CONTROLS MUST NOT CONFLICT: avoid toggles that override other inputs (use presets for canonical cases instead); if one input overrides another, checks must account for it.
 PRESETS: partial maps {control id: value}; vectors/matrices given in full with the right length.
 TEACHING: define every symbol on first use; "try/watch/why" must be concrete (name the control, the exact view/readout, and the equation responsible). The two explorations must target the learning outcomes in the brief. Keep the whole spec concise (target < 5000 tokens).
 Output ONLY the JSON object."""

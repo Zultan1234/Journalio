@@ -80,9 +80,12 @@ class LLM:
             except (requests.RequestException, ValueError) as e:
                 dt = round(time.time() - t0, 2)
                 last_err = str(e)[:300]
-                self.trace.log("llm", "call_failed", "exception", purpose=purpose, attempt=attempt + 1, elapsed_s=dt,
+                kind = "ssl" if isinstance(e, requests.exceptions.SSLError) else type(e).__name__
+                self.trace.log("llm", "call_failed", "exception (%s)" % kind, purpose=purpose, attempt=attempt + 1, elapsed_s=dt,
                                detail=last_err, request_no=self.requests)
-                time.sleep(2)
+                if kind == "ssl" and attempt >= 1:
+                    break  # local network/TLS interception: retrying further only wastes requests
+                time.sleep(1.5)
                 continue
             if "error" in data and not data.get("choices"):
                 last_err = str(data["error"])[:300]

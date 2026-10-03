@@ -161,6 +161,66 @@ def degrade(spec, report, trace):
     return bool(removed)
 
 
+def fix_from_report(spec, report, trace):
+    """Deterministic fixes for common, unambiguous mistakes found by the validator (saves a repair call)."""
+    fixes = []
+    sliders = {c.get("id") for c in spec.get("controls", []) if isinstance(c, dict) and c.get("type") == "slider"}
+    scalars = set(report.get("scalar_keys") or [])
+    for v in spec.get("views", []):
+        if not isinstance(v, dict) or v.get("type") != "line":
+            continue
+        x = v.get("x")
+        if any(("view %s (line): x '%s' must be a 1-D" % (v.get("id"), x)) in e for e in report.get("errors", [])) and x in sliders:
+            ys = [s_.get("key") for s_ in v.get("series", []) if s_.get("key") in scalars and s_.get("key") != x]
+            if ys:
+                new = {"id": v.get("id"), "type": "sweep", "control": x, "title": v.get("title"), "stage": v.get("stage"),
+                       "caption": v.get("caption"), "xlabel": v.get("xlabel"), "ylabel": v.get("ylabel"),
+                       "y": [{"key": s_.get("key"), "label": s_.get("label"), "dashed": s_.get("dashed")} for s_ in v.get("series", []) if s_.get("key") in ys]}
+                v.clear()
+                v.update({k: val for k, val in new.items() if val is not None})
+                fixes.append("view %s: line over scalar '%s' converted to a sweep of slider '%s'" % (new["id"], x, x))
+    if fixes:
+        trace.log("normalize", "auto_fix_from_validation", "%d fix(es)" % len(fixes), fixes=fixes)
+    return bool(fixes)
+
+
+def enrich(spec, report, trace):
+    """Add a model-driven 'sweep' plot (output vs a slider, computed live by the real model) if none exists.
+    Costs no tokens; shows cause and effect across the whole input range."""
+    views = spec.setdefault("views", [])
+    if any(isinstance(v, dict) and v.get("type") == "sweep" for v in views) or len(views) >= 5:
+        return None
+    effects = report.get("sweep_effects") or {}
+    readouts = [r for r in spec.get("readouts", []) if isinstance(r, dict) and r.get("key") in set(report.get("scalar_keys") or [])]
+    best = None
+    for c in spec.get("controls", []):
+        if not isinstance(c, dict) or c.get("type") != "slider":
+            continue
+        moved = [r for r in readouts if r["key"] in effects.get(c.get("id"), []) and r["key"] != c.get("id")]
+        if moved and (best is None or len(moved) > len(best[1])):
+            best = (c, moved)
+    if not best:
+        return None
+    c, moved = best
+    unit = moved[0].get("unit")
+    ys = [r for r in moved if r.get("unit") == unit][:2]
+    label = lambda x: str(x or "").replace("<sub>", "").replace("</sub>", "").replace("<sup>", "^").replace("</sup>", "")
+    stage = None
+    for st in spec.get("stages", []):
+        if isinstance(st, dict) and ys[0]["key"] in (st.get("keys") or []):
+            stage = st.get("id")
+    view = {"id": "auto_sweep", "type": "sweep", "control": c["id"],
+            "title": "%s as %s varies" % (label(ys[0].get("label") or ys[0]["key"]), label(c.get("label") or c["id"])),
+            "y": [{"key": r["key"], "label": label(r.get("label") or r["key"])} for r in ys],
+            "ylabel": (unit or "") if len(ys) > 1 else label(ys[0].get("label") or ys[0]["key"]) + (" (%s)" % unit if unit else ""),
+            "caption": "Computed by re-running the model across the whole range of %s with every other input fixed; the dot marks the current setting." % label(c.get("label") or c["id"])}
+    if stage:
+        view["stage"] = stage
+    views.append(view)
+    trace.log("enrich", "add_sweep_view", "added", control=c["id"], y=[r["key"] for r in ys])
+    return view
+
+
 def score(report):
     return len(report.get("errors", []))
 
@@ -233,8 +293,12 @@ def main():
     normalize(spec, case, trace)
     report = validate(spec)
     trace.log("validate", "execute_spec", "pass" if report["ok"] else "%d error(s)" % len(report["errors"]),
-              engine=report.get("engine"), states=report.get("states"), checks=report.get("checks"),
-              control_effect=report.get("control_effect"), errors=report["errors"][:12], warnings=report.get("warnings"))
+              engine=report.get("engine"), states=report.get("states"), distinct_states=report.get("distinct_states"),
+              checks=report.get("checks"), control_effect=report.get("control_effect"), errors=report["errors"][:12],
+              warnings=report.get("warnings"), engine_issues=report.get("infra_errors") or None)
+    if not report["ok"] and fix_from_report(spec, report, trace):
+        report = validate(spec)
+        trace.log("validate", "after_auto_fix", "pass" if report["ok"] else "%d error(s)" % len(report["errors"]), errors=report["errors"][:12])
     best_spec, best_report = copy.deepcopy(spec), report
     revisions = 0
     while not report["ok"] and revisions < MAX_REPAIRS:
@@ -255,6 +319,8 @@ def main():
         spec.update(patch)
         normalize(spec, case, trace)
         report = validate(spec)
+        if not report["ok"] and fix_from_report(spec, report, trace):
+            report = validate(spec)
         trace.log("repair", "apply_patch", "pass" if report["ok"] else "%d error(s)" % len(report["errors"]),
                   revision=revisions, patched_keys=sorted(patch.keys()), errors=report["errors"][:12])
         if score(report) <= score(best_report):
@@ -265,6 +331,16 @@ def main():
         if degrade(spec, report, trace):
             report = validate(spec)
             trace.log("validate", "after_degrade", "pass" if report["ok"] else "%d error(s)" % len(report["errors"]), errors=report["errors"][:12])
+
+    # ---- stage 3b: deterministic visual enrichment (no tokens), kept only if it validates
+    added = enrich(spec, report, trace)
+    if added is not None:
+        r2 = validate(spec)
+        if score(r2) <= score(report):
+            report = r2
+        else:
+            spec["views"] = [v for v in spec["views"] if v is not added]
+            trace.log("enrich", "add_sweep_view", "reverted (validation)")
 
     # ---- stage 4: render
     usable = not any(("compute threw at state [defaults]" in e) or ("compute: syntax error" in e) for e in report["errors"])
