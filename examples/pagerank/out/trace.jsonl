@@ -1,0 +1,15 @@
+{"t": 0.0, "stage": "start", "action": "args", "result": "ok", "model": "deepseek/deepseek-v4.1-flash", "input": "case.json", "python": "3.14.5"}
+{"t": 0.001, "stage": "input", "action": "read_case", "result": "ok", "fields": ["audience", "excerpt", "focus", "source_url"]}
+{"t": 0.001, "stage": "source", "action": "read_excerpt", "result": "field 'excerpt'", "chars": 1138}
+{"t": 0.001, "stage": "source", "action": "evidence_ready", "result": "ok", "excerpt_chars": 1138, "extra_fields": []}
+{"t": 1.148, "stage": "figures", "action": "scan_page", "result": "0 relevant figure(s)", "page": "http://infolab.stanford.edu/~backrub/google.html", "candidates": []}
+{"t": 1.148, "stage": "figures", "action": "embed", "result": "0 figure(s)", "bytes": 0}
+{"t": 38.959, "stage": "llm", "action": "call", "result": "ok", "purpose": "generate_spec", "model": "deepseek/deepseek-v4.1-flash", "generation_id": "gen-1791023647-aQlIuHbjMuCzQDg8Hfl4", "request_no": 1, "prompt_tokens": 1595, "completion_tokens": 1997, "reasoning_tokens": 0, "cached_tokens": 1572, "cost": 0.00081636, "total_tokens": 3592, "finish_reason": "stop", "elapsed_s": 38.96, "response_chars": 5576, "cumulative_tokens": 3592}
+{"t": 38.96, "stage": "generate", "action": "parse_spec", "result": "ok", "keys": ["checks", "claims", "compute", "controls", "equations", "explorations", "first_action", "intro", "limitation", "paper", "readouts", "scope", "stages", "symbols", "theme", "title", "views"], "finish_reason": "stop", "response_chars": 5576}
+{"t": 38.961, "stage": "normalize", "action": "auto_fix", "result": "1 fix(es)", "fixes": ["paper.url filled from case"]}
+{"t": 39.164, "stage": "validate", "action": "execute_spec", "result": "2 error(s)", "engine": "mini-racer(V8)", "states": 60, "distinct_states": 24, "checks": ["nonneg", "sums1", "convSums1", "rowsStochastic"], "control_effect": {"d": true, "iters": true, "links": true}, "errors": ["stage conv references key 'iters' which compute() does not return (returned keys: M,r,history,conv,sum,sweepD,sweepR,names)", "readout iterations references key 'iters' which compute() does not return (returned keys: M,r,history,conv,sum,sweepD,sweepR,names)"], "warnings": [], "engine_issues": null}
+{"t": 39.164, "stage": "triage", "action": "free_fixes", "result": "2 fix(es)", "fixes": ["dropped readouts with missing keys", "stripped stage keys not returned by compute"]}
+{"t": 39.371, "stage": "validate", "action": "after_triage", "result": "pass", "errors": []}
+{"t": 39.372, "stage": "theme", "action": "resolve", "result": "ok", "hue": 210, "motif": "network", "style": "technical", "source": "model"}
+{"t": 39.373, "stage": "render", "action": "write_html", "result": "ok", "bytes": 77639, "self_contained": true}
+{"t": 39.374, "stage": "end", "action": "summary", "result": "success", "validation_ok": true, "revisions": 0, "requests": 1, "prompt_tokens": 1595, "completion_tokens": 1997, "total_tokens": 3592, "elapsed_s": 39.47}

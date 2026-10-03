@@ -1,0 +1,1135 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Batch Norm: Normalize, Then Scale-Shift</title>
+<style>
+:root{--h:205;--bg:hsl(var(--h) 25% 97.5%);--card:#fff;--fg:hsl(var(--h) 15% 13%);--muted:hsl(var(--h) 8% 42%);--line:hsl(var(--h) 12% 86%);
+--acc:hsl(var(--h) 62% 40%);--accbg:hsl(var(--h) 70% 95%);--band:hsl(var(--h) 55% 93%);
+--s1:hsl(var(--h) 64% 46%);--s2:hsl(calc(var(--h) + 150) 62% 46%);--s3:hsl(calc(var(--h) + 60) 55% 40%);--s4:hsl(calc(var(--h) + 270) 50% 52%);--s5:hsl(calc(var(--h) + 30) 60% 42%);
+--paper:#1f5fbf;--derived:#7a3fb5;--toy:#b8650b;--ok:#1e8a4c;--bad:#c23b2e;--hot:hsl(calc(var(--h) + 180) 95% 80%);
+--font:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;--hfont:var(--font)}
+@media (prefers-color-scheme:dark){:root{--bg:hsl(var(--h) 18% 9%);--card:hsl(var(--h) 14% 13%);--fg:hsl(var(--h) 10% 91%);--muted:hsl(var(--h) 8% 65%);--line:hsl(var(--h) 10% 25%);
+--acc:hsl(var(--h) 85% 72%);--accbg:hsl(var(--h) 35% 20%);--band:hsl(var(--h) 30% 16%);
+--s1:hsl(var(--h) 80% 66%);--s2:hsl(calc(var(--h) + 150) 70% 62%);--s3:hsl(calc(var(--h) + 60) 60% 60%);--s4:hsl(calc(var(--h) + 270) 65% 70%);--s5:hsl(calc(var(--h) + 30) 70% 62%);
+--paper:#7aa8ff;--derived:#c39af0;--toy:#f2a957;--ok:#4fd08a;--bad:#ff7b6e;--hot:hsl(calc(var(--h) + 180) 60% 30%)}}
+body.classic{--font:"Iowan Old Style","Palatino Linotype",Palatino,"Book Antiqua",Georgia,serif;--hfont:var(--font)}
+body.technical{--hfont:ui-monospace,"Cascadia Code","SF Mono",Consolas,monospace}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.55 var(--font)}
+h1,h2,h3{font-family:var(--hfont)}
+body.technical h1{letter-spacing:-.02em}
+main{max-width:1180px;margin:0 auto;padding:20px 16px 60px}
+h1{font-size:1.75rem;line-height:1.2;margin:.2em 0}
+h2{font-size:1.2rem;margin:1.8em 0 .6em;padding-bottom:.25em;border-bottom:2px solid var(--line)}
+h3{font-size:1rem;margin:.1em 0 .4em}
+a{color:var(--acc);overflow-wrap:anywhere}
+.cite{overflow-wrap:anywhere}
+code,.sym,.eqx,.sx,.ex{font-family:"Cambria Math","STIX Two Math","Latin Modern Math",Georgia,serif}
+code{background:var(--accbg);padding:0 .3em;border-radius:4px}
+.muted{color:var(--muted)}
+.sub{color:var(--muted);margin:.2em 0 .4em;font-size:1.05rem}
+.hero{display:grid;grid-template-columns:1fr 230px;gap:18px;align-items:center;background:var(--band);border-radius:14px;padding:16px 20px;margin-bottom:6px}
+@media (max-width:640px){.hero{grid-template-columns:1fr}.hero .motif{max-width:200px;justify-self:center}}
+.motif{width:100%;height:auto;display:block}
+.motif .f{fill:var(--acc)}.motif .f2{fill:var(--s2)}.motif .fl{fill:var(--card);stroke:var(--line)}
+.motif .a{stroke:var(--acc)}.motif .a2{stroke:var(--s2)}.motif .m{stroke:var(--muted);stroke-width:1.2;opacity:.6}.motif .l{stroke:var(--line);stroke-width:2}
+.motif .tx{font:700 14px monospace;fill:#fff;text-anchor:middle}.motif .tx0{font:700 14px monospace;fill:var(--acc);text-anchor:middle}
+#figs{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px;margin-top:14px}
+#figs:empty{display:none}
+.pfig{margin:0}.pfig img{max-width:100%;max-height:340px;display:block;margin:0 auto;background:#fff;border-radius:6px}
+.pfig figcaption{font-size:.85rem;color:var(--muted);margin-top:6px}
+.cite{font-size:.88rem;color:var(--muted)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px 16px}
+.grid4{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-top:14px}
+.q h3{color:var(--acc)}
+.q p{margin:0}
+#first{margin-top:14px;background:var(--accbg);border:1px solid var(--acc);border-radius:10px;padding:12px 16px;display:flex;gap:16px;align-items:center;flex-wrap:wrap}
+#first .tw{flex:1 1 400px}
+.btn{background:var(--acc);color:#fff;border:0;border-radius:8px;padding:8px 14px;font:inherit;font-weight:600;cursor:pointer}
+.btn.ghost{background:transparent;color:var(--acc);border:1px solid var(--acc)}
+.btn.warn{background:var(--toy)}
+.btn:focus-visible,.stage:focus-visible{outline:3px solid var(--hot);outline-offset:2px}
+#lab{display:grid;grid-template-columns:330px 1fr;gap:16px;align-items:start;scroll-margin-top:10px}
+@media (max-width:860px){#lab{grid-template-columns:1fr}}
+#ctrlpane{position:sticky;top:10px;max-height:calc(100vh - 20px);overflow:auto}
+.ctrl{padding:10px 0;border-bottom:1px solid var(--line)}
+.ctrl:last-child{border-bottom:0}
+.cl{display:flex;justify-content:space-between;gap:8px;font-weight:600}
+.cl.tog{justify-content:flex-start;align-items:center;cursor:pointer}
+.cv{font-variant-numeric:tabular-nums;color:var(--acc);font-weight:700}
+.cd{font-size:.83rem;color:var(--muted);margin-top:4px}
+input[type=range]{width:100%;accent-color:var(--acc)}
+.range{display:flex;justify-content:space-between;font-size:.75rem;color:var(--muted)}
+select{width:100%;padding:6px;font:inherit;margin-top:4px;background:var(--card);color:var(--fg);border:1px solid var(--line);border-radius:6px}
+.vrow{display:grid;grid-template-columns:minmax(28px,auto) 1fr 70px;gap:6px;align-items:center}
+.vl{font-size:.85rem}
+input.num,.mat input{width:100%;padding:3px 4px;font:inherit;font-size:.9rem;background:var(--card);color:var(--fg);border:1px solid var(--line);border-radius:5px}
+.mat{border-collapse:collapse;margin-top:6px}
+.mat th{font-weight:500;font-size:.8rem;color:var(--muted);padding:2px 4px}
+.mat td{padding:2px}
+.mat input{width:62px}
+#mechmap{display:flex;flex-wrap:wrap;align-items:stretch;gap:6px}
+.stage{background:var(--card);border:1.5px solid var(--line);border-radius:9px;padding:6px 10px;cursor:pointer;text-align:left;color:var(--fg);font:inherit;min-width:90px}
+.stage .sl{font-weight:650;font-size:.88rem}
+.stage .sx{font-size:.85rem;color:var(--muted)}
+.stage.sel{border-color:var(--acc);box-shadow:0 0 0 2px var(--accbg)}
+.arrow{align-self:center;color:var(--muted);font-weight:700}
+@keyframes hot{0%{background:var(--hot)}100%{background:var(--card)}}
+.stage.hot,.view.hot{animation:hot 1.2s ease-out}
+#inspect{margin-top:10px;font-size:.9rem}
+#inspect p{margin:.3em 0}
+.kv{font-variant-numeric:tabular-nums;margin:.2em 0;overflow-x:auto}
+.kv .k{font-family:monospace;color:var(--muted)}
+table.mini{border-collapse:collapse;display:inline-table;vertical-align:middle}
+table.mini td{border:1px solid var(--line);padding:1px 6px;font-size:.85rem}
+#readouts{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin:12px 0}
+.ro{background:var(--card);border:1px solid var(--line);border-radius:9px;padding:8px 10px}
+.ro .rk{font-size:.8rem;color:var(--muted)}
+.ro .rv{font-size:1.25rem;font-weight:700;font-variant-numeric:tabular-nums;overflow-x:auto}
+.ro .u{font-size:.8rem;font-weight:500;color:var(--muted)}
+.ro.flash{animation:hot 1.2s ease-out}
+#views{display:grid;grid-template-columns:repeat(auto-fit,minmax(520px,1fr));gap:12px}
+@media (max-width:520px){#views{grid-template-columns:1fr}}
+#views>*{min-width:0}.vb{overflow-x:auto}
+.view{margin:0}
+.vt{font-weight:650;margin-bottom:6px}
+.vs{font-weight:400;font-size:.78rem;color:var(--muted);border:1px solid var(--line);border-radius:10px;padding:0 6px;margin-left:4px}
+.vc{font-size:.86rem;color:var(--muted);margin-top:6px}
+.chart{width:100%;height:auto;display:block;color:var(--fg)}
+.chart text{fill:var(--fg)}
+.grid{stroke:var(--line);stroke-width:1}
+.axis{stroke:var(--muted);stroke-width:1.2}
+.tick{font-size:11px;fill:var(--muted)!important}
+.alabel{font-size:12px;font-weight:600}
+.bv{font-size:11px;font-variant-numeric:tabular-nums}
+.bar.hl{stroke:var(--fg);stroke-width:2}
+.ln{fill:none;stroke-width:2.5}
+.pt{fill:var(--s2);stroke:var(--card);stroke-width:2}
+.refl{stroke:var(--muted);stroke-dasharray:5 4}
+.rl{font-size:11px}
+.seg{stroke:var(--muted);stroke-width:1.5;stroke-dasharray:4 3}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:.82rem;margin-top:4px}
+.legend i{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:4px;vertical-align:-1px}
+table.heat,table.dt{border-collapse:collapse;margin:4px auto;font-variant-numeric:tabular-nums}
+.heat th,.dt th{font-size:.82rem;font-weight:600;padding:4px 8px;color:var(--muted)}
+.heat td{min-width:58px;text-align:center;padding:8px 6px;border:1px solid var(--card);font-size:.92rem}
+.heat td.rs{background:transparent!important;color:var(--muted)!important;font-size:.82rem}
+.dt td{border-top:1px solid var(--line);padding:4px 10px;text-align:right}
+.dt tr.tot td{font-weight:700;border-top:2px solid var(--fg)}
+#why{background:var(--card);border-left:4px solid var(--hot);border-radius:8px;padding:10px 14px;margin-top:12px;font-size:.92rem}
+#why p{margin:.3em 0}
+.chain span{display:inline-block;background:var(--accbg);border-radius:6px;padding:1px 7px;margin:2px 0}
+.deltas{margin:.3em 0;padding-left:1.2em}
+.tag{display:inline-block;font-size:.68rem;font-weight:800;letter-spacing:.04em;border-radius:4px;padding:1px 5px;color:#fff;vertical-align:1px}
+.tag-paper{background:var(--paper)}.tag-derived{background:var(--derived)}.tag-playground{background:var(--toy)}
+.legendtags{font-size:.85rem;color:var(--muted)}
+table.sy{border-collapse:collapse;width:100%}
+.sy td{border-bottom:1px solid var(--line);padding:6px 8px;vertical-align:top}
+.sy td.sym{font-size:1.1rem;white-space:nowrap;width:1%}
+.eq{border-left:3px solid var(--paper);padding:6px 12px;margin:8px 0;background:var(--card);border-radius:0 8px 8px 0}
+.eqx{font-size:1.15rem;overflow-x:auto}
+.eqm{font-size:.85rem}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media (max-width:860px){.two{grid-template-columns:1fr}}
+.expl .btn{margin:4px 0 8px}
+details summary{cursor:pointer;color:var(--acc);font-weight:600}
+#limitation{border-color:var(--toy);border-width:1.5px}
+#claims{padding-left:1.1em}
+#claims li{margin:.35em 0}
+.ref{color:var(--muted);font-size:.85rem}
+.badge{display:inline-block;border-radius:12px;padding:2px 10px;font-size:.82rem;font-weight:700;color:#fff}
+.badge.ok{background:var(--ok)}.badge.bad{background:var(--bad)}
+#livechecks{list-style:none;padding:0;margin:.4em 0}
+#livechecks li.ok{color:var(--ok)}#livechecks li.bad{color:var(--bad);font-weight:700}
+.err,#runerr{color:var(--bad);font-weight:600}
+#runerr{display:none;background:var(--card);border:1px solid var(--bad);padding:8px;border-radius:8px;margin-bottom:8px}
+.labhead{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:4px}
+.sv{margin-top:3px;min-height:4px;display:flex;gap:6px;align-items:center}
+.spark{display:block}
+.mv{font-variant-numeric:tabular-nums;font-weight:700;font-size:.9rem;color:var(--acc)}
+.anim{margin-left:auto;margin-right:6px;border:1px solid var(--acc);background:transparent;color:var(--acc);border-radius:6px;font-size:.75rem;line-height:1;padding:3px 7px;cursor:pointer}
+.anim:hover{background:var(--accbg)}
+.drop{stroke:var(--muted);stroke-width:1;stroke-dasharray:2 3;opacity:.7}
+.inbar{font-size:12px;font-weight:700;fill:#fff!important}
+.maxbox{fill:none;stroke:var(--fg);stroke-width:1.5;stroke-dasharray:6 4}
+footer{margin-top:40px;font-size:.8rem;color:var(--muted)}
+</style>
+</head>
+<body class="technical">
+<main>
+<header>
+ <div class="hero">
+  <div>
+  <h1 id="title"></h1>
+  <div class="sub" id="subtitle"></div>
+  <div class="cite" id="cite"></div>
+  </div>
+  <svg class="motif" viewBox="0 0 240 140" role="img" aria-label="decorative distribution illustration"><defs><marker id="mh" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0L10,5L0,10z" fill="var(--acc)"/></marker><marker id="mh2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0L10,5L0,10z" fill="var(--s2)"/></marker></defs><line x1="14" y1="121" x2="228" y2="121" class="l"/><rect x="22" y="118.6" width="17" height="1.4" rx="2" class="f" fill-opacity=".75"/><rect x="42" y="112.4" width="17" height="7.6" rx="2" class="f" fill-opacity=".75"/><rect x="62" y="93.9" width="17" height="26.1" rx="2" class="f" fill-opacity=".75"/><rect x="82" y="60.3" width="17" height="59.7" rx="2" class="f" fill-opacity=".75"/><rect x="102" y="29.8" width="17" height="90.2" rx="2" class="f" fill-opacity=".75"/><rect x="122" y="29.8" width="17" height="90.2" rx="2" class="f" fill-opacity=".75"/><rect x="142" y="60.3" width="17" height="59.7" rx="2" class="f" fill-opacity=".75"/><rect x="162" y="93.9" width="17" height="26.1" rx="2" class="f" fill-opacity=".75"/><rect x="182" y="112.4" width="17" height="7.6" rx="2" class="f" fill-opacity=".75"/><rect x="202" y="118.6" width="17" height="1.4" rx="2" class="f" fill-opacity=".75"/><polyline points="30,116.9 33,116 36,114.9 39,113.6 42,112 45,110.2 48,107.9 51,105.4 54,102.4 57,99 60,95.3 63,91.1 66,86.5 69,81.5 72,76.2 75,70.7 78,65 81,59.1 84,53.3 87,47.6 90,42.1 93,37 96,32.4 99,28.4 102,25 105,22.5 108,20.8 111,20.1 114,20.2 117,21.3 120,23.3 123,26.1 126,29.6 129,33.9 132,38.7 135,43.9 138,49.5 141,55.2 144,61.1 147,66.9 150,72.6 153,78 156,83.2 159,88.1 162,92.5 165,96.6 168,100.2 171,103.4 174,106.3 177,108.7 180,110.8 183,112.6 186,114.1 189,115.3 192,116.3 195,117.2 198,117.8 201,118.3 204,118.7 207,119.1 210,119.3 213,119.5" class="a2" stroke-width="3" fill="none"/></svg>
+ </div>
+  <div class="legendtags" style="margin-top:6px">Labels used on this page:
+    <span class="tag tag-paper">PAPER</span> stated in the source excerpt ·
+    <span class="tag tag-derived">DERIVED</span> follows mathematically from it ·
+    <span class="tag tag-playground">PLAYGROUND</span> our simplified teaching example (not a result of the paper)</div>
+</header>
+
+<section class="grid4" id="intro" aria-label="Orientation"></section>
+<section id="figs" aria-label="Figures from the paper"></section>
+<div id="first"></div>
+
+<h2>1 · The mechanism, step by step</h2>
+<div class="card"><div id="mechmap" aria-label="Mechanism map: click a stage to inspect it"></div><div id="inspect"></div></div>
+
+<h2>2 · Laboratory <span class="muted" style="font-size:.85rem;font-weight:400">— change the inputs, watch every downstream quantity update</span></h2>
+<div id="lab">
+  <aside class="card" id="ctrlpane" aria-label="Controls">
+    <div class="labhead"><b>Controls</b><button class="btn ghost" id="reset">Reset</button></div>
+    <div id="controls"></div>
+  </aside>
+  <section aria-label="Results">
+    <div id="runerr" role="alert"></div>
+    <div id="readouts"></div>
+    <div id="views"></div>
+    <div id="why" aria-live="polite"></div>
+  </section>
+</div>
+
+<h2>3 · Notation and equations</h2>
+<div class="two">
+  <div class="card"><h3>Symbols</h3><table class="sy"><tbody id="symbols"></tbody></table></div>
+  <div class="card"><h3>Equations</h3><div id="equations"></div></div>
+</div>
+
+<h2>4 · Guided explorations</h2>
+<div class="two" id="explorations"></div>
+
+<h2>5 · Limitation lab</h2>
+<div class="card" id="limitation"></div>
+
+<h2>6 · Source grounding</h2>
+<div class="card">
+  <ul id="claims"></ul>
+  <div id="scope" class="muted" style="font-size:.9rem"></div>
+</div>
+
+<h2>7 · Checks <span id="checkbadge" class="badge"></span></h2>
+<div class="two">
+  <div class="card"><h3>Live invariants (current inputs)</h3><ul id="livechecks"></ul></div>
+  <div class="card"><h3>How this page was verified</h3><div id="buildinfo"></div></div>
+</div>
+<footer>Generated by Journalio (Paper → Playground agent). All numbers on this page are computed live in your browser from the current inputs; the toy values are teaching examples, not experimental results from the paper. Works offline.</footer>
+</main>
+<script type="application/json" id="spec-data">{"title": "Batch Norm: Normalize, Then Scale-Shift", "paper": {"title": "Batch Normalization: Accelerating Deep Network Training by Reducing Internal Covariate Shift", "authors": "Ioffe & Szegedy", "year": "2015", "section": "Section 3, Algorithm 1", "url": "https://arxiv.org/abs/1502.03167"}, "theme": {"hue": 205, "motif": "distribution", "style": "technical"}, "symbols": [{"sym": "x<sub>i<\/sub>", "meaning": "mini-batch activation values", "tag": "PAPER"}, {"sym": "&mu;<sub>B<\/sub>, &sigma;<sub>B<\/sub><sup>2<\/sup>", "meaning": "mini-batch mean and variance", "tag": "PAPER"}, {"sym": "x&#770;<sub>i<\/sub>", "meaning": "normalized value", "tag": "PAPER"}, {"sym": "&gamma;, &beta;", "meaning": "learned scale and shift", "tag": "PAPER"}, {"sym": "&epsilon;", "meaning": "stability constant added to variance", "tag": "PAPER"}, {"sym": "y<sub>i<\/sub>", "meaning": "layer output", "tag": "PAPER"}], "equations": [{"expr": "&mu;<sub>B<\/sub> = (1/m) &sum;<sub>i<\/sub> x<sub>i<\/sub>", "ref": "Algorithm 1", "tag": "PAPER"}, {"expr": "&sigma;<sub>B<\/sub><sup>2<\/sup> = (1/m) &sum;<sub>i<\/sub> (x<sub>i<\/sub> &minus; &mu;<sub>B<\/sub>)<sup>2<\/sup>", "ref": "Algorithm 1", "tag": "PAPER"}, {"expr": "x&#770;<sub>i<\/sub> = (x<sub>i<\/sub> &minus; &mu;<sub>B<\/sub>) / &radic;(&sigma;<sub>B<\/sub><sup>2<\/sup> + &epsilon;),&nbsp;&nbsp; y<sub>i<\/sub> = &gamma; x&#770;<sub>i<\/sub> + &beta;", "ref": "Algorithm 1", "tag": "PAPER"}], "stages": [{"id": "in", "label": "mini-batch", "expr": "x<sub>1<\/sub>...x<sub>m<\/sub>", "keys": ["x"]}, {"id": "stats", "label": "batch mean &amp; variance", "expr": "&mu;<sub>B<\/sub>, &sigma;<sub>B<\/sub><sup>2<\/sup>", "keys": ["mu", "var"]}, {"id": "norm", "label": "normalize", "expr": "x&#770;<sub>i<\/sub>", "keys": ["xhat"]}, {"id": "out", "label": "scale &amp; shift", "expr": "y<sub>i<\/sub> = &gamma; x&#770;<sub>i<\/sub> + &beta;", "keys": ["y"]}], "controls": [{"id": "x", "type": "vector", "label": "mini-batch x", "min": -10, "max": 10, "step": 0.1, "default": [1, 2, 3, 4], "labels": ["x1", "x2", "x3", "x4"], "effect": "Values being normalized; sets mean and variance."}, {"id": "gamma", "type": "slider", "label": "gamma (scale)", "min": -3, "max": 3, "step": 0.1, "default": 1, "effect": "Multiplies normalized values; negative flips sign."}, {"id": "beta", "type": "slider", "label": "beta (shift)", "min": -5, "max": 5, "step": 0.1, "default": 0, "effect": "Adds constant offset to every output."}, {"id": "eps", "type": "slider", "label": "epsilon", "min": 0, "max": 1, "step": 0.01, "default": 0.01, "effect": "Inflates denominator; shrinks normalized magnitude."}], "compute": "const x=inp.x.slice(); const m=x.length; const mu=x.reduce((a,b)=>a+b,0)/m; const variance=x.reduce((a,b)=>a+(b-mu)*(b-mu),0)/m; const den=Math.sqrt(variance+inp.eps); const xhat=x.map(v=>(v-mu)/den); const y=xhat.map(v=>inp.gamma*v+inp.beta); const nmean=xhat.reduce((a,b)=>a+b,0)/m; const nvar=xhat.reduce((a,b)=>a+(b-nmean)*(b-nmean),0)/m; return {x:x,mu:mu,var:variance,xhat:xhat,y:y,nmean:nmean,nvar:nvar};", "readouts": [{"key": "mu", "label": "batch mean &mu;<sub>B<\/sub>", "unit": ""}, {"key": "var", "label": "batch variance &sigma;<sub>B<\/sub><sup>2<\/sup>", "unit": ""}, {"key": "nmean", "label": "mean of x&#770;", "unit": ""}, {"key": "nvar", "label": "variance of x&#770;", "unit": ""}], "views": [{"type": "bars", "title": "Input vs output per sample", "key": "x", "labels": ["x1", "x2", "x3", "x4"], "ymin": -10, "ymax": 10, "stage": "in", "caption": "Raw activations before normalization", "id": "v1"}, {"type": "bars", "title": "Normalized x&#770; and output y", "key": "xhat", "labels": ["x1", "x2", "x3", "x4"], "ymin": -5, "ymax": 5, "stage": "norm", "caption": "x&#770; has mean 0, variance ~1", "id": "v2"}, {"id": "auto_sweep", "type": "sweep", "control": "eps", "title": "variance of x&#770; as epsilon varies", "y": [{"key": "nvar", "label": "variance of x&#770;"}], "ylabel": "variance of x&#770;", "caption": "Computed by re-running the model across the whole range of epsilon with every other input fixed; the dot marks the current setting."}], "claims": [{"text": "Mini-batch mean and variance are computed over the batch, not per-sample.", "tag": "PAPER", "ref": "Algorithm 1"}, {"text": "Normalized values are scaled and shifted by learned gamma and beta.", "tag": "PAPER", "ref": "Algorithm 1"}, {"text": "Epsilon is added to the variance for numerical stability.", "tag": "PAPER", "ref": "Algorithm 1"}, {"text": "With epsilon = 0, x&#770; has exactly mean 0 and variance 1 (when variance > 0).", "tag": "DERIVED", "ref": "Algorithm 1"}, {"text": "This model treats one activation channel with a 4-element batch; real layers have many channels and larger batches.", "tag": "PLAYGROUND", "ref": ""}], "checks": [{"name": "nmean_zero", "expr": "Math.abs(out.nmean)<1e-9"}, {"name": "nvar_one_noeps", "expr": "!(inp.eps===0 && out.var>0)||Math.abs(out.nvar-1)<1e-9"}, {"name": "identity_recovery", "expr": "!(Math.abs(inp.gamma-Math.sqrt(out.var+inp.eps))<1e-9 && Math.abs(inp.beta-out.mu)<1e-9)||out.y.every((v,i)=>Math.abs(v-out.x[i])<1e-9)"}, {"name": "finite", "expr": "out.y.every(v=>Number.isFinite(v))"}], "scope": {"out": "Backprop, training dynamics, convolutional/RNN variants, and inference-time running statistics are omitted."}, "intro": {"what": "Normalize each activation across the mini-batch to mean 0, variance 1, then rescale and shift with learned gamma and beta.", "why": "Stabilizes layer input distributions, allowing higher learning rates and faster, less initialization-sensitive training."}, "first_action": {"try": ["try", "Drag x3 to 10: one outlier shifts the mean and inflates variance.", "x", [1, 2, 3, 10]], "watch": ["watch", "x&#770; values recenter and rescale; y follows gamma and beta.", "x", [1, 2, 3, 10]], "why": ["why", "Normalization removes the batch's location and scale before the learned affine restores flexibility.", "x", [1, 2, 3, 10]], "preset": {}}, "explorations": [{"title": "Identical values", "change": "Set all x equal (e.g. 5,5,5,5)", "observe": "Variance is 0; x&#770; = 0 for all, y = beta everywhere.", "why": "With zero spread the denominator is &radic;&epsilon;; epsilon keeps it finite. Output collapses to beta.", "preset": {}}, {"title": "Outlier batch", "change": "Set x = [1,2,3,10]", "observe": "Mean jumps to 4, variance grows; x&#770; spreads widely.", "why": "A single large value dominates the batch statistics, showing why batch composition matters.", "preset": {}}], "limitation": {"kind": "assumption", "title": "Identity recovery", "claim": "Setting gamma = &radic;(&sigma;<sub>B<\/sub><sup>2<\/sup>+&epsilon;) and beta = &mu;<sub>B<\/sub> recovers the input.", "try": "Set gamma and beta to those values for the current batch.", "observe": "y equals x again.", "explain": "The affine parameters can undo normalization, so BN never loses representational power.", "preset": {}}}</script>
+<script type="application/json" id="build-data">{"validation": {"ok": true, "errors": [], "states": 84, "checks": ["nmean_zero", "nvar_one_noeps", "identity_recovery", "finite"], "engine": "mini-racer(V8)"}, "revisions": 1, "model": "deepseek/deepseek-v4.1-flash", "figures": [{"data": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAPcAAAC7CAYAAAC5FghEAAAAAXNSR0IB2cksfwAAAAZiS0dEAP8A/wD/oL2nkwAAAAlwSFlzAAASdAAAEnQB3mYfeAAAACB0RVh0U29mdHdhcmUAR1BMIEdob3N0c2NyaXB0IDEwLjAyLjHDX9SJAAAWEklEQVR4nO2dP6vzyNnGLz1sAlvqNIENISBnSQikybgLvAQiN/tWKeZsle6J3L5FQIIUaWXIF7DYLQKBECtVWol8Amu/wGJ1aa2QFKdIMW/hZ/TIsmTLf2SN5esHguM/mrmPrEtzz8w991hKKRBCxse7oQ0ghPQDxU3ISLmpuC3L8izLSm5ZJiHkMm4mbsuybADercojhFzH1eK2LEt8aK23AMT1JhFCbsEnNyijAJB9OOQNyiOE3IBPAFw1F1adSpvNZgDgXFsmIaQzMwBp0wd3Hy3/85//jF/+8pcIguDeVRPyVNzCLT+Lr776Cl988QV+9atf3btqQp6Ku7fc3/nOd/Dzn/8cQnDsjZA+YRALISOF4iZkpFDchIwUipuQkXLT0fIkYVg5IabAlpuQkXL3eW5CriVtjMcyiywDiuLw/aIA8vzw/TzfHb4PhOFtbKC4yVl0FZbj7I5j6BtaUxdEnn98/QiCNg2K+8nRoimKnbg01b+r3yP9YNvAreO6KO4bURfHLRFi9+NXqbdyTa+baHMXTafqCTxCcGOb59KHiNuguK8gy3YtWpYBcTy0Nf2iHzBdb8wuDzrb3hdAvfwurj1ph+I+kzjeCTqOH78F1K+1V1D1EJq8BVPJ8xx5pfOuX7uuC9d1T54/n88RRdHJ7/m+j/BWo113gOLuQBdB2zYgZT+CaGoFq6LUr6uivUaceZ4jy3IIIWDfQeFFUSDLMjiOA6dDUx0EARaLRaeyu4i7eMSndAceWty6n3vrfkxR7Au6DSl39brusP1A3VJVW7A4Lg5aM8dxOgUaRVHUKJ66UKSU8LzTafOiKEJcuZBazHWklFitVifL60pTHU04jtPpIdDlwWMSDyluLbo2T6ou9lN9u2q5uh/dhpQ7MffVSl9CmxjrXHtzpg0Xpou48zxvPLfOOS1oVYy2be/9b7Ztn+V1PJKrfQ4PI27dmi4WzUEA9e/eaupGu9ta0PdACyHP807i6UrXNfRaONWWr621vZR6SymE6PzwGasYb43x4s7znaCb+rtaePp71XNOPQCO4TgfXe4+Ba0Fk6Zp6VJXBWTbdidxa6HoFqv+/rl0GYgqin23/xie51GQA2CsuLXb3dQCCwF4XnfX+NSccFF8dN2F6L//nGUZZrPZSTe0KAoURXHSvew6KnxL6g+SYzxaX3UsGCXuPN8JOoqaR6W1oM+9j+v34J110EibsIUQZX+RqajINRgh7jj+eNTRLrLvmzOAVSfPc0RRhDRNkSTJyZa2Kl7d19R/E3IrBhN3Uez60m2ttJQfDxMpigJxHCOO472R4DRNITsYvd1u+zSPkOHEPZ0eDnrZ9s719jxzww51Kx1FUaNr3XWQiZC+GUzcngfofQl0P/qGsz43J03Tg2AMjeM4ZUAHB4+IKQwqbr04/RH0oF3wKp7nQUp595FqQrowmLhtG1guh6r9fHzfRxRF5dwzW2liOkaMlj8COi6brTR5FJgg8QwobPJIPLW4i6LAdDrttJaXkEfjqcU9m82QZRnm83nn9cGEPApPKW7dYutFGrZt0+Umo+PpxF0URdlia8IwZOgnGR1PJe66sG3bxnK5vOmaaUJM4WmmwvI8x+vr656wkyRhi01Gy1OIu75+msImz8BTueUAhU2eh6cQtxACSZKUUWYUNnkGnsItB3YC32w2Q5tByN14ipabkGeE4iZkpFDchIwUipuQkTIKcWdZhslkctMdMQh5dB5e3DpAJc/zg5hxQp6ZhxZ3FEWYTqdl5FnXLWAJeQb2xB3HMabTKSzLwmQy6bzGOQgCTCaT8rxApzXtkSiKMJ/Py9c6UOUe+0kT8giU4k7TFK+vr2UUl5QSQRCczFKiN0KXUpbnLRaLXgVeF7aum8ImpIL6gJRSCSFUFSmlchxHtbHZbBQA5fv+3vu+7yvbthvPcV1XJUnSWuYpdJ368Dzv4rIIGQGuUgpNR9lyx3F8kI1ESnmwrWwVvbtG/TzXdVEURacN18+lWqaUEstHyo9MyB15B3wUTF2k2s09tdVsG32MXFe36+myJxchz8rR0XIt9rYWWI9M1z/X/fSmh8Lb2xu++uqrizOOVre2Zd4zQtq5alWY4zjwfR+LxQJZlkEI0YsrXsX3ffi+32sdhIyBoy23doGPzR2HYYjVagXbtpFlGVzXLfvBTed9+umneP/+PfOWEdIznwAo3dz69rNdxA3s+r7V/q9uvRlQQshwvAN2/VjHcQ4GwNoG2qrMZrOD3S/jOGYucEIGpnTLpZSIoqgUeJZliKJoz32OoqgxfjsIgrKV1/tY0+0mZFjKAbUwDMudOIQQZf85DMPyy3meI03TvVHwMAzx+vqKyWRSvuf7/t55hJD7YymlVPWNLMtQFMXelFMXqv3sY33t2WwG3/fpshNyG2YAGqeoDqbCLs0MSrESYhYPveSTENLOw4h7MplgNptxL21COvIQecvzPC8PAByJJ6QDD9FyV4NruFsIId14CHFX49UZ9UZINx5C3NV5dbbchHTjIcRNt5yQ83kIcWu3nMImpDvGi7sax87+NiHdMV7cVZec4iakO8aLu9py0y0npDvGB7F4ngfHcZDnOcVNyBkYL27HcRiRRsgFGO+WE0Iug+ImZKRQ3ISMFIqbkJFCcRMyUihuQkYKxU3ISDFW3EVRXLy7KCHEYHFnWYaXlxe8vLwwbxohF2CsuPWCEbbghFyG8eIGuGCEkEswVtxcx03IdRgrbq7jJuQ6jBc3tyki5DKMFDdTGRNyPUaKu+qS27Y9oCWEPC7Gi5tuOSGXYaS4OVJOyPUYmWYpSRJkWYaiKChuQi7ESHEDDFwh5FqMdMsJIddDcRMyUihuQkYKxU3ISKG4CRkpe+KO4xjT6RSWZWEymWCxWHQqJAgCTCYTWJaFl5cXBEHQi7GEkO6U4k7TFK+vr3AcB0mSQEqJIAhOZkEJggCLxQJSSiRJAs/zsFgsKHBChkZ9QEqphBCqipRSOY6jjuE4jvI8b+893/dVpeg9XNdVSZI0fpYkiVqtVmq9Xh+tkxBS4iql0HSUQSxxHMP3/T3hSykRxzGyLGsNKsnz/GaLO9I0LbsCSZIMFlf+l7/8BZ7n4bvf/e4g9ZPn4Yc//CG++eabXsr+BPi4xLIuJi3aYznMPM9DFEWQUkIIgTzPkabpRcI0ZS/u3/3ud3j37t3Bw46QW9PrPabUzh0G0OguA1C+77f6BNvtVrmuqwCUhxBCbbfbxu//4he/UF9++aVaLpcHn9m2rQAo27bPd05uyGeffaY+++yzQW0gzwFauq9n0OqWXz0VtlgskKYpfN/HarWC7/vI8/zsAbVqllPGlRNyPUcXjuh11W0rs7Isw2KxQBiGpXshpYTrupjNZnBdF1LKvXM+/fRTvH///sBtN8UlJ2QsvAM+iqmaJKH6uk3cuq9eF7AWblWwp6h+l9lXCLmed8BOTI7jHIixbaBNox8K9fP0Q+EckVYH7dhyE3I9ZZ9bSokoikqhZlmGKIrgeV755SiKMJvNyu+4rgvHcbBYLPZ2CJnP57Bt+6BFPwbdcvMIggCWZe0lrAR2D28dxVhnsViU51iWdXLsZTabGRfwNJvNYFnWwdEUfam/G8dxa1mz2eweZh9QijsMQ3ieh+l0Wh5CCIRhWH5ZT3NVW9nVaoWiKPbCT7MsQ5IkZ2VR0eK2bZtuuSFoj60ubv06z/MDr6364NcPf00QBIPd6OfaIIRAkiR7h+u6rdGX8/ncuG2v9gbUlsslPM9DURSwbfugBQ3DcE/swO4ibDabvRvgkjluIQTSNGWrbRCu68K27YOxmCzL4Lou0jQ9+M30Z8AuEOlRsW374D52XReTyeTggeY4DoqiKAeXTeFgKkwIAdd1zxaZflJfGlWWJAmUUg99Q4wRLeIqcRxDCAEp5d6Nnuc58jwv753ZbFauTQiCoIx2rHbtNIvFovT+Xl9fGz+vLmpqco/r6yB0XZpTNnShyRt1HAe+75fTwqbAJZ/kKEIIFEWxNxZTFEUZkVjta1ZdcmDnvldnXBzHKT3CatcrjmPEcYwwDLFcLstFTJogCBAEQekqSykP3ONqXZqiKA42uGizoQvaU2kaS/J9H0IIzOfzs8rslWvDY84OpzmycMQUukao6ci+LkcXhirPdd3WMtbrtQJQRhSGYVhGEOrPVquVUupwwRBq0Y2+7x/U5bquchxnL6JxuVyW5Wy328YoSV3XZrNprKv6/9fPO/b/apvarlV9kZTrumV5+npU7ah+3sQNJHh64QghTegWTrfK1XUDQohyClVKefGaAt2311RdX11vvbXUS4vTNN2b0bkVjuMc1FkURen6L5fLg3OEEKV7rj2bIaG4r6Bp0OURyzt1E1b73Wma7t3YruuWLnWWZRcthDjmHut66zbqB0DdFb8VjuM0Do7Zto3FYgHP8xqvm+/7iOMY8/kc6/W6F9u6QnFfge4Djr083bfWrVb1geG6LqIoavzsFmgB6Rmcc7hkwOwUejqsbdrLtm0sl0vMZrPOmYz6ggNq5CRasFEUlYNS9c/0jXxrceu66kEi+vWx+vqYd+4Sfem6bume9+VZdIHiJiep9rvr/VDt+ud53ktyDT01WxVKnudYLBblZwDKvr8WtI6wvBQ90l499Kh9l6li3T2huInxVAfR6uj3Tt3wtm0jTVNMp9OzXOblcgnbtst58MlkgqIo9vr+vu8jTVNMJhNMp1PMZrPG/n9XG/RcePXQA2Wr1eqkzdo9HxLrw3D83dAXXd8seq7ScZxeRj0v4fvf/z4A4J///OfAloyP6gDZJfPMmiYvQQfRnCr/GhtujWVZuFKCMwCNkTODi9uyLAA7cW82m3ua0grFTe5Fn+Ie1C2v9ke4VS8ht8UYcQ894U/I2BhU3PW4X0LI7RhU3My+Qkh/0C0nZKQY4ZZT2ITcnsHEzZFyQvplMHFXo4MobjMxOUHiWJIY9slg4rZtuwxmGWrDP3Ic0xMkjiGJYZ8MtuSTojYf0xMkjiGJYZ9w4Qg5iikJEs/hkZIY9gnFTY5iQoLEc3i4JIY9wkwsV5CmwBjGYVwXaPOgq/u+6dzy9Zz2cRzvteJN3S3P80qhN7nFSZLsCb6LAPWgXVNdbSsMl8slptMpgiAYvXtOcZOjDJ0g8RhjSGLYJxT3Fdj2rtV7dE7d30MmSDzGGJIY9gnFfQVCtLuzY2LIBImX8EhJDPuEA2rkJEMmSLyER0pi2CdsuclJqv3uutut55ov7W9fQ327IGDXbYiiqHMSwyiKkOf5KKMk795yv7294de//rWR+zKTdoZMkNjGGJIY9sndc6gJIfDNN98A2D05TZyOYA61/jApOaEJ9JlD7e5u+Xa7Lf8eoytEjmNCn/xZGHRAjeImpD/uLu5///vf5d98ihPSH3cX93/+8x8AlwcuEEK6cXdx//e//wXA1EqE9M1g89ymi/tf//oXfvvb3w5tBiEXM5i4TXbL//jHP+I3v/kN/vSnPw1tChk5P/jBD3or++7z3HqJnk6JQwi5im7z3HEcY7FYIMuyctfNY6t8siw7GmUmhDgIUvnZz36Gn/70p5wGI6RnygE1nf3CcRwkSQIpJYIguHgD87ZUNt/73vfw/v17ipuQvlEfkFIqIYSqIqVUjuOocwnDUDmOo7bb7cFnruuqJEnOLpMQ0oirlELTUbbccRwf9IGllI3pa4+R5zkWiwWWy6XRg2aEjJ13wEcXui5uLc5zcj3P53NIKY0ZLKsmEngEgiC4yYqpe0F7++Uae49OhVWzWHYRq05de2y53dvbG/7617/i22+/xeeff36muefzj3/8A8DjxLEnSYKXl5eHSZ5Pe/vlmlmlm85zB0EAz/OOuuM//vGP8be//Q1pmuJHP/rRLatvRK9Ce5R0Om9vb/j73//ee0L/W0F7++Xt7e3ihumouKs5p0+hc1S3pZTVfP311/j666/PMJEQcgnvgI+hoPVcUueIO4qiMtUtIWR43gG7gTOdf7pK20BbnaIoysT0hBAzKKfCpJSIomhv25goivbc7CiKGvd56voQIITcj7LPHYYhiqLAdDqFEKLcrbEaPprnOdI0PRhp1GI3faUXIc/EwcIRvdFbfT8oQoiRtC4cufuqMELITWkV98PuOKL7/03EcYzpdArLsjCZTBrnuHWe6ybm8zksy7pJZFsQBOW+0y8vL5jP5wfdGlPsLYoCQRDg5eWltKVp1Z8p9tYJgqBx109T7G3Ks95U7yl7j9lqWdbSsixlWZaHtmh0k9lut0oIoVzXPfgsSRIFQEkpVZIkyvd9BUAtl8u977mu23i+53mN378EXbfneSpJErVcLpVt23sLdEyz17Zt5fv+ni2+7xtpbxVtF4DG902wd7VaKQBlXdXjHHtr55QLRwAsP1wDTymFhxL3er1WruuWP2LTj9F1dVvTj3nrG8+2beV53t57+sfTdZhi73a7PRBytY6qbSbYW7fdcRzlOM6BuE2y1/f9k6ssu9jbJO66sFV1VdgjoAf5fN9vDZa5dHXbfD5HFEVYLpcno+y6kOc5iqI4GJTUtukAIZPsdV33IFahHkpsir31spv26jbN3qIoTgZ5XWKvZVlLAB6AuVKq7Ds81EaA1f2Ym/7RS1e39fFD2raNJEkOxF3dTscke4UQB/HWRVGUU6JV202wVxNFEdI0xWazOeibmmZvnuewbbtc6aU3UdR1XGLvT37yk/8D8L+oCRt44AG1c6jfnFXm8zniOAZw3tLWU+gfrtry6bRUQoij0XxD2FtFD/xMJhPkeX5yP7eh7M3zHEEQnJ07YEh79cpJIQSKosB8Psd8Pr/I3vl8jjzP/+fDy4ML8BTibiNNU8RxXKaV6muvZj0KPZ1OAeDiFUn3sld3f7Q7eE2qrT7tfX19bexKXErf9jqOg+VyiSRJEIYhkiQptxE+d822tvUPf/iDDyAG4FuWtefzP4W42xbAVF1nvZXr6+vrTetO0xSTyaR089br9clWZkh7db1hGGK5XCIMw5M33xD2auFJKZGm6V7kZJqmxtkL7B7qdTdfJyDV3kJXe7Wtv//9778FoJv+vUQKoxL3uavbhBDlOXqv5lMZXc8hjmPMZjNIKbHZbA5+WJPsTdO0sRxtcxzHRtlbFAWKosDr62s576s9DL33u0n2tlF90J9jb9VWpVSBncCFZVkf+1A3GeMfgLZ5ScdxDqaf9Fxhl/P19Md6vb7aRtu2lZTy6HdMsVfPwdbL0VN3q9XKKHubaLLDFHvbru9mszn7+naY5xbq0ea5q7T9GPpC6Iu4Xq8b55vbztdzpkKIxuytXdGi8DxP+b5/cOgMsKbYu91ulW3bynXdspzNZqOEEMq27fI9U+xtokm0ptirr2+1HH19q3PYXew9Im4bwAbAGoA9OnEr9fFpK4Qog13qP8yx87Uw6wEd5xCGYRls03RUyzbBXqVUGUFXtdNxnIPWxhR76zSJ2yR71+t1GWhzzfVtE7faCdz9UHY42oUjj7a6zRR79dy2pm2Nvin2dsUke6tTWje4vlwVRshIaRX3/wOL3yVYD2QrNgAAAABJRU5ErkJggg==", "caption": "(a) The test accuracy of the MNIST network trained with and without Batch Normalization, vs. the number of training steps. Batch Normalization helps the network train faster and achieve higher accuracy. (b, c) The evolution of input distributions to a typical ", "label": "Figure 1", "url": "https://arxiv.org/html/1502.03167"}, {"data": "data:image/png;base64,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", "caption": "Single crop validation accuracy of Inception and its batch-normalized variants, vs. the number of training steps.", "label": "Figure 2", "url": "https://arxiv.org/html/1502.03167"}]}</script>
+<script>/* Journalio core: shared by the browser runtime AND the build-time validator.
+   Pure functions only (no DOM). */
+var JCore = (function () {
+  "use strict";
+
+  function clone(x) { return JSON.parse(JSON.stringify(x)); }
+  function isNum(x) { return typeof x === "number" && isFinite(x); }
+
+  function getPath(obj, path) {
+    if (path === undefined || path === null) return undefined;
+    if (typeof path !== "string") return path; // literal value
+    var parts = path.split(".");
+    var cur = obj;
+    for (var i = 0; i < parts.length; i++) {
+      if (cur === undefined || cur === null) return undefined;
+      cur = cur[parts[i]];
+    }
+    return cur;
+  }
+
+  function clampNum(v, c) {
+    v = Number(v);
+    if (!isFinite(v)) v = isNum(c.default) ? c.default : (isNum(c.min) ? c.min : 0);
+    if (isNum(c.min) && v < c.min) v = c.min;
+    if (isNum(c.max) && v > c.max) v = c.max;
+    return v;
+  }
+
+  function resolveLen(spec, inp, fixed, from, fallback) {
+    if (from && inp[from] !== undefined) {
+      var n = Math.round(Number(inp[from]));
+      if (isFinite(n) && n > 0) return n;
+    }
+    if (isNum(fixed) && fixed > 0) return Math.round(fixed);
+    return fallback;
+  }
+
+  function fitVector(arr, n, fill, c) {
+    var out = [];
+    arr = Array.isArray(arr) ? arr : [];
+    for (var i = 0; i < n; i++) {
+      var v = i < arr.length ? arr[i] : (fill !== undefined ? fill : (arr.length ? arr[arr.length - 1] : 0));
+      out.push(clampNum(v, { min: c.min, max: c.max, default: isNum(fill) ? fill : 0 }));
+    }
+    return out;
+  }
+
+  /* Make an input object valid for the spec: fill defaults, clamp, resize vectors/matrices. */
+  function fixInputs(spec, inp) {
+    var out = {};
+    inp = inp || {};
+    var ctrls = spec.controls || [];
+    // scalar controls first (vectors may depend on them)
+    ctrls.forEach(function (c) {
+      var v = inp[c.id] !== undefined ? inp[c.id] : c.default;
+      if (c.type === "slider") {
+        v = clampNum(v, c);
+        if (c.integer || (isNum(c.step) && Math.abs(c.step - Math.round(c.step)) < 1e-12 && Math.abs(Number(c.min || 0) - Math.round(Number(c.min || 0))) < 1e-12)) v = Math.round(v);
+        out[c.id] = v;
+      } else if (c.type === "toggle") {
+        out[c.id] = (v === true || v === "true" || v === 1);
+      } else if (c.type === "select") {
+        var opts = (c.options || []).map(function (o) { return (o && typeof o === "object") ? o.value : o; });
+        var hit = opts.filter(function (o) { return String(o) === String(v); });
+        out[c.id] = hit.length ? hit[0] : (opts.length ? opts[0] : v);
+      }
+    });
+    ctrls.forEach(function (c) {
+      var v = inp[c.id] !== undefined ? inp[c.id] : c.default;
+      if (c.type === "vector") {
+        var dflt = Array.isArray(c.default) ? c.default : [];
+        var n = resolveLen(spec, out, c.length, c.length_from, dflt.length || 3);
+        out[c.id] = fitVector(Array.isArray(v) ? v : dflt, n, c.fill, c);
+      } else if (c.type === "matrix") {
+        var d = Array.isArray(c.default) ? c.default : [[0]];
+        var r = resolveLen(spec, out, c.rows, c.rows_from, d.length || 2);
+        var k = resolveLen(spec, out, c.cols, c.cols_from, (d[0] || []).length || 2);
+        var src = Array.isArray(v) ? v : d;
+        var m = [];
+        for (var i = 0; i < r; i++) {
+          var row = src[i] !== undefined ? src[i] : (d[i] !== undefined ? d[i] : (src[src.length - 1] || []));
+          m.push(fitVector(row, k, c.fill !== undefined ? c.fill : 0, c));
+        }
+        out[c.id] = m;
+      }
+    });
+    return out;
+  }
+
+  /* Accept a bare function body, "function(inp){...}", "function compute(inp){...}" or "(inp)=>{...}". */
+  var FN_RE = /^\s*(?:async\s+)?(?:function\b|\(?\s*[A-Za-z_$][\w$]*\s*(?:,\s*[A-Za-z_$][\w$]*\s*)*\)?\s*=>|\(\s*\)\s*=>)/;
+  function makeFn(args, src, label, errors) {
+    src = String(src || "").trim().replace(/^```(?:js|javascript)?\s*/, "").replace(/\s*```$/, "").replace(/;\s*$/, "");
+    var bodies = [];
+    if (FN_RE.test(src)) bodies.push("var __f = (" + src + ");\nreturn __f(" + args.join(", ") + ");");
+    bodies.push(src);
+    var firstErr = null;
+    for (var i = 0; i < bodies.length; i++) {
+      try { return new Function(args.join(","), '"use strict";\n' + bodies[i]); }
+      catch (e) { if (!firstErr) firstErr = e; }
+    }
+    errors.push(label + ": syntax error: " + (firstErr && firstErr.message));
+    return null;
+  }
+
+  function compile(spec) {
+    var res = { compute: null, draws: {}, checks: [], errors: [] };
+    res.compute = makeFn(["inp", "Math"], spec.compute, "compute", res.errors);
+    (spec.views || []).forEach(function (v, i) {
+      if (v.type === "canvas") {
+        var f = makeFn(["ctx", "out", "inp", "W", "H"], v.draw, "view " + (v.id || i) + " draw", res.errors);
+        if (f) res.draws[v.id || ("v" + i)] = f;
+      }
+    });
+    (spec.checks || []).forEach(function (c, i) {
+      var expr = String(c.expr || "").trim().replace(/;\s*$/, "");
+      var src = FN_RE.test(expr) ? expr : (/^return\b/.test(expr) || /;\s*return\b/.test(expr) ? expr : "return (" + expr + ");");
+      var errs = [];
+      var fn = makeFn(["out", "inp", "Math"], src, "check '" + (c.name || i) + "'", errs);
+      errs.forEach(function (e) { res.errors.push(e); });
+      res.checks.push({ name: c.name || ("check " + (i + 1)), fn: fn, spec: c });
+    });
+    return res;
+  }
+
+  function run(compiled, inp) {
+    if (!compiled.compute) throw new Error("compute not compiled");
+    var out = compiled.compute(clone(inp), Math);
+    if (!out || typeof out !== "object") throw new Error("compute must return an object");
+    return out;
+  }
+
+  /* Return list of paths holding NaN/Infinity. */
+  function badNumbers(x, path, acc) {
+    acc = acc || []; path = path || "out";
+    if (typeof x === "number") { if (!isFinite(x)) acc.push(path + "=" + x); }
+    else if (Array.isArray(x)) { for (var i = 0; i < x.length && acc.length < 8; i++) badNumbers(x[i], path + "[" + i + "]", acc); }
+    else if (x && typeof x === "object") { for (var k in x) if (Object.prototype.hasOwnProperty.call(x, k)) badNumbers(x[k], path + "." + k, acc); }
+    return acc;
+  }
+
+  function evalChecks(compiled, out, inp) {
+    return compiled.checks.map(function (c) {
+      if (!c.fn) return { name: c.name, ok: false, err: "syntax" };
+      try { var r = c.fn(out, inp, Math); return { name: c.name, ok: !!r }; }
+      catch (e) { return { name: c.name, ok: false, err: e.message }; }
+    });
+  }
+
+  function deepEqualNum(a, b, tol) {
+    tol = tol || 1e-9;
+    if (typeof a === "number" && typeof b === "number") return Math.abs(a - b) <= tol * Math.max(1, Math.abs(a), Math.abs(b)) || (a !== a && b !== b);
+    if (Array.isArray(a) && Array.isArray(b)) {
+      if (a.length !== b.length) return false;
+      for (var i = 0; i < a.length; i++) if (!deepEqualNum(a[i], b[i], tol)) return false;
+      return true;
+    }
+    if (a && b && typeof a === "object" && typeof b === "object") {
+      var ka = Object.keys(a), kb = Object.keys(b);
+      if (ka.length !== kb.length) return false;
+      for (var j = 0; j < ka.length; j++) if (!deepEqualNum(a[ka[j]], b[ka[j]], tol)) return false;
+      return true;
+    }
+    return a === b;
+  }
+
+  function changedKeys(prev, next) {
+    var keys = {};
+    Object.keys(next || {}).forEach(function (k) { if (!prev || !deepEqualNum(prev[k], next[k])) keys[k] = true; });
+    Object.keys(prev || {}).forEach(function (k) { if (!next || !(k in next)) keys[k] = true; });
+    return Object.keys(keys);
+  }
+
+  function fmt(v, d) {
+    if (d === undefined || d === null) d = 3;
+    if (typeof v === "boolean") return v ? "true" : "false";
+    if (typeof v !== "number") return v === undefined || v === null ? "—" : String(v);
+    if (!isFinite(v)) return String(v);
+    if (v !== 0 && (Math.abs(v) >= 1e5 || Math.abs(v) < Math.pow(10, -d))) return v.toExponential(Math.max(1, d - 1));
+    var s = v.toFixed(d);
+    if (s.indexOf(".") >= 0) s = s.replace(/0+$/, "").replace(/\.$/, "");
+    if (s === "-0") s = "0";
+    return s;
+  }
+
+  /* Keys referenced by stages/readouts/views (for validation). */
+  function referencedKeys(spec) {
+    var refs = [];
+    function add(k, where) { if (typeof k === "string" && k) refs.push({ key: k, where: where }); }
+    (spec.stages || []).forEach(function (s) { (s.keys || []).forEach(function (k) { add(k, "stage " + s.id); }); });
+    (spec.readouts || []).forEach(function (r) { add(r.key, "readout " + (r.label || r.key)); });
+    (spec.views || []).forEach(function (v) {
+      var w = "view " + (v.id || v.title);
+      add(v.key, w); add(v.x, w);
+      if (typeof v.labels === "string") add(v.labels, w);
+      if (typeof v.row_labels === "string") add(v.row_labels, w);
+      if (typeof v.col_labels === "string") add(v.col_labels, w);
+      if (typeof v.highlight === "string") add(v.highlight, w);
+      (v.series || []).forEach(function (s) { add(s.key, w); });
+      (v.points || []).forEach(function (p) { add(p.x, w); add(p.y, w); });
+      (v.vlines || []).forEach(function (p) { add(p.key, w); });
+      (v.hlines || []).forEach(function (p) { add(p.key, w); });
+      (v.columns || []).forEach(function (c) { add(c.key, w); });
+      if (typeof v.segments === "string") add(v.segments, w);
+      add(v.max_key, w);
+      (v.y || []).forEach(function (y) { add(typeof y === "string" ? y : y.key, w); });
+      (v.points || []).forEach(function (p) { if (typeof p.labels === "string") add(p.labels, w); });
+    });
+    return refs;
+  }
+
+  return {
+    clone: clone, isNum: isNum, getPath: getPath, fixInputs: fixInputs, compile: compile, run: run,
+    badNumbers: badNumbers, evalChecks: evalChecks, deepEqualNum: deepEqualNum, changedKeys: changedKeys,
+    fmt: fmt, referencedKeys: referencedKeys
+  };
+})();
+</script>
+<script>/* Journalio runtime: renders a validated spec into an interactive lab. No network, no libraries. */
+(function () {
+  "use strict";
+  var SPEC = JSON.parse(document.getElementById("spec-data").textContent);
+  var BUILD = JSON.parse(document.getElementById("build-data").textContent);
+  var C = JCore;
+  var comp = C.compile(SPEC);
+  var state = { inp: C.fixInputs(SPEC, {}), out: null, prev: null, lastControl: null, lastOld: null };
+  var ctrlById = {};
+  (SPEC.controls || []).forEach(function (c) { ctrlById[c.id] = c; });
+
+  // ---------------- helpers ----------------
+  function $(id) { return document.getElementById(id); }
+  function el(tag, attrs, kids) {
+    var e = document.createElement(tag);
+    if (attrs) Object.keys(attrs).forEach(function (k) {
+      if (k === "html") e.innerHTML = attrs[k];
+      else if (k === "text") e.textContent = attrs[k];
+      else if (k.slice(0, 2) === "on") e.addEventListener(k.slice(2), attrs[k]);
+      else e.setAttribute(k, attrs[k]);
+    });
+    (kids || []).forEach(function (k) { if (k !== null && k !== undefined) e.appendChild(typeof k === "string" ? document.createTextNode(k) : k); });
+    return e;
+  }
+  var ALLOWED = /&lt;(\/?)(sub|sup|b|i|em|strong|code|br|u|small)\s*\/?&gt;/g;
+  function rich(s) {
+    if (s === undefined || s === null) return "";
+    s = String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+    return s.replace(ALLOWED, "<$1$2>").replace(/\*\*(.+?)\*\*/g, "<b>$1</b>").replace(/`([^`]+)`/g, "<code>$1</code>");
+  }
+  function tag(t) {
+    t = (t || "PLAYGROUND").toUpperCase();
+    var label = { PAPER: "PAPER", DERIVED: "DERIVED", PLAYGROUND: "PLAYGROUND", TOY: "PLAYGROUND" }[t] || t;
+    return '<span class="tag tag-' + label.toLowerCase() + '" title="' + ({ PAPER: "Directly supported by the source excerpt", DERIVED: "Follows mathematically from the source", PLAYGROUND: "Simplified toy example chosen for teaching" }[label] || "") + '">' + label + "</span>";
+  }
+  function fmt(v, d) { return C.fmt(v, d); }
+  function val(key) { return C.getPath(state.out || {}, key); }
+  function labelsFor(spec, n) {
+    var l = spec;
+    if (typeof l === "string") l = val(l);
+    if (!Array.isArray(l)) { l = []; for (var i = 0; i < n; i++) l.push(String(i + 1)); }
+    return l.map(String);
+  }
+  var SVGNS = "http://www.w3.org/2000/svg";
+  var SUB = { "0": "₀", "1": "₁", "2": "₂", "3": "₃", "4": "₄", "5": "₅", "6": "₆", "7": "₇", "8": "₈", "9": "₉", "+": "₊", "-": "₋", "=": "₌", "(": "₍", ")": "₎", a: "ₐ", e: "ₑ", h: "ₕ", i: "ᵢ", j: "ⱼ", k: "ₖ", l: "ₗ", m: "ₘ", n: "ₙ", o: "ₒ", p: "ₚ", r: "ᵣ", s: "ₛ", t: "ₜ", u: "ᵤ", v: "ᵥ", x: "ₓ" };
+  var SUP = { "0": "⁰", "1": "¹", "2": "²", "3": "³", "4": "⁴", "5": "⁵", "6": "⁶", "7": "⁷", "8": "⁸", "9": "⁹", "+": "⁺", "-": "⁻", "=": "⁼", "(": "⁽", ")": "⁾", n: "ⁿ", i: "ⁱ", T: "ᵀ", k: "ᵏ", x: "ˣ" };
+  function mapChars(t, m, pre) { var all = t.split("").every(function (ch) { return m[ch]; }); return all ? t.split("").map(function (ch) { return m[ch]; }).join("") : pre + t; }
+  /* SVG text cannot render HTML: turn <sub>/<sup> into Unicode, strip other tags, decode entities */
+  function plain(x) {
+    var t = String(x === undefined || x === null ? "" : x);
+    t = t.replace(/<sub>(.*?)<\/sub>/g, function (_, a) { return mapChars(a, SUB, "_"); })
+         .replace(/<sup>(.*?)<\/sup>/g, function (_, a) { return mapChars(a, SUP, "^"); })
+         .replace(/<[^>]+>/g, "");
+    var d = document.createElement("textarea"); d.innerHTML = t; return d.value;
+  }
+  function svg(tagName, attrs, text) {
+    var e = document.createElementNS(SVGNS, tagName);
+    Object.keys(attrs || {}).forEach(function (k) { e.setAttribute(k, attrs[k]); });
+    if (text !== undefined) {
+      var t = String(text);
+      if (/<su[bp]>/.test(t)) { // real sub/superscripts via tspans
+        t.split(/(<su[bp]>.*?<\/su[bp]>)/).forEach(function (seg) {
+          if (!seg) return;
+          var m = seg.match(/^<(su[bp])>(.*?)<\/su[bp]>$/);
+          var ts = document.createElementNS(SVGNS, "tspan");
+          if (m) { ts.setAttribute("baseline-shift", m[1] === "sub" ? "sub" : "super"); ts.setAttribute("font-size", "75%"); ts.textContent = plain(m[2]); }
+          else ts.textContent = plain(seg);
+          e.appendChild(ts);
+        });
+      } else e.textContent = plain(t);
+    }
+    return e;
+  }
+  function niceRange(lo, hi) {
+    if (!isFinite(lo) || !isFinite(hi)) { lo = 0; hi = 1; }
+    if (lo === hi) { hi = lo + (lo === 0 ? 1 : Math.abs(lo) * 0.5); lo = lo - (lo === 0 ? 0 : Math.abs(lo) * 0.5); }
+    var span = hi - lo, step = Math.pow(10, Math.floor(Math.log10(span / 4)));
+    var err = span / 4 / step;
+    if (err >= 5) step *= 5; else if (err >= 2) step *= 2;
+    return { lo: Math.floor(lo / step) * step, hi: Math.ceil(hi / step) * step, step: step };
+  }
+  var PAL = ["var(--s1)", "var(--s2)", "var(--s3)", "var(--s4)", "var(--s5)"];
+
+  // ---------------- static sections ----------------
+  function renderStatic() {
+    var P = SPEC.paper || {};
+    document.title = SPEC.title || "Interactive explanation";
+    $("title").innerHTML = rich(SPEC.title);
+    $("subtitle").innerHTML = rich(SPEC.subtitle || "");
+    var cite = [P.authors, P.year ? "(" + P.year + ")" : "", P.title ? "<i>" + rich(P.title) + "</i>" : ""].filter(Boolean).join(" ");
+    $("cite").innerHTML = "Source: " + cite + (P.section ? " — <b>" + rich(P.section) + "</b>" : "") +
+      (P.url ? ' — <a href="' + encodeURI(P.url) + '" target="_blank" rel="noopener">' + rich(P.url) + "</a>" : "");
+
+    var I = Object.assign({}, SPEC.intro || {});
+    // derived for free from the spec (the model does not spend tokens on these)
+    var strip = function (x) { return String(x || "").replace(/<(?!\/?(sub|sup)\b)[^>]+>/g, ""); };
+    if (!I.change) I.change = (SPEC.controls || []).map(function (c) { return "<b>" + strip(c.label || c.id) + "</b>"; }).join(" · ");
+    if (!I.watch) {
+      var w = (SPEC.readouts || []).slice(0, 2).map(function (r) { return strip(r.label || r.key); })
+        .concat((SPEC.views || []).slice(0, 2).map(function (v) { return strip(v.title); }));
+      I.watch = w.filter(Boolean).join(" · ") + (SPEC.stages && SPEC.stages.length ? ", and how each step of the mechanism map updates." : "");
+    }
+    (BUILD.figures || []).forEach(function (f) {
+      var fig = el("figure", { "class": "card pfig" });
+      var img = el("img", { alt: f.caption || f.label || "Figure from the paper", loading: "lazy" });
+      img.src = f.data;
+      fig.appendChild(img);
+      fig.appendChild(el("figcaption", { html: tag("PAPER") + " <b>" + rich(f.label || "Figure") + "</b> reproduced from the paper. " + rich(f.caption || "") }));
+      $("figs").appendChild(fig);
+    });
+    [["what", "What is this?"], ["why", "Why does it matter?"], ["change", "What can I change?"], ["watch", "What should I watch?"]].forEach(function (p) {
+      $("intro").appendChild(el("div", { "class": "card q" }, [el("h3", { text: p[1] }), el("p", { html: rich(I[p[0]]) })]));
+    });
+    var F = SPEC.first_action;
+    if (F) {
+      var box = $("first");
+      box.innerHTML = '<div class="tw"><div><b>TRY THIS FIRST:</b> ' + rich(F.try) + '</div><div><b>WATCH:</b> ' + rich(F.watch) + '</div><div><b>WHY:</b> ' + rich(F.why) + "</div></div>";
+      if (F.preset && Object.keys(F.preset).length) box.appendChild(el("button", { "class": "btn", text: "Set it up for me", onclick: function () { applyPreset(F.preset, "first action"); } }));
+    } else $("first").style.display = "none";
+
+    // symbols
+    var st = $("symbols");
+    (SPEC.symbols || []).forEach(function (s) {
+      st.appendChild(el("tr", null, [el("td", { "class": "sym", html: rich(s.sym) }), el("td", { html: rich(s.meaning) }), el("td", { html: tag(s.tag) })]));
+    });
+    // equations
+    var eq = $("equations");
+    (SPEC.equations || []).forEach(function (e) {
+      eq.appendChild(el("div", { "class": "eq" }, [
+        el("div", { "class": "eqx", html: rich(e.expr) }),
+        el("div", { "class": "eqm", html: tag(e.tag) + " " + rich(e.ref || "") + (e.note ? ' — <span class="muted">' + rich(e.note) + "</span>" : "") })
+      ]));
+    });
+    // scope
+    var S = SPEC.scope || {};
+    $("scope").innerHTML = (S["in"] ? "<p><b>In scope:</b> " + rich(S["in"]) + "</p>" : "") + (S.out ? "<p><b>Out of scope:</b> " + rich(S.out) + "</p>" : "");
+
+    // explorations
+    (SPEC.explorations || []).forEach(function (x, i) {
+      var card = el("div", { "class": "card expl" }, [
+        el("h3", { html: "Exploration " + (i + 1) + ": " + rich(x.title) }),
+        el("p", { html: "<b>WHAT TO CHANGE:</b> " + rich(x.change) }),
+        el("p", { html: "<b>WHAT TO OBSERVE:</b> " + rich(x.observe) }),
+        el("details", null, [el("summary", { text: "WHY IT HAPPENS (predict first, then reveal)" }), el("p", { html: rich(x.why) })])
+      ]);
+      if (x.preset && Object.keys(x.preset).length) card.insertBefore(el("button", { "class": "btn", text: "Load this setup into the lab ↑", onclick: function () { applyPreset(x.preset, "exploration " + (i + 1)); } }), card.children[1]);
+      $("explorations").appendChild(card);
+    });
+    // limitation
+    var L = SPEC.limitation || {};
+    var lk = (L.kind || "limitation").toLowerCase();
+    var lbox = $("limitation");
+    lbox.appendChild(el("h3", { html: (lk.indexOf("mis") >= 0 ? "Common misconception: " : "Assumption / limitation: ") + rich(L.title) }));
+    lbox.appendChild(el("p", { html: "<b>" + (lk.indexOf("mis") >= 0 ? "MISCONCEPTION" : "ASSUMPTION") + ":</b> " + rich(L.claim) }));
+    lbox.appendChild(el("p", { html: "<b>TRY THIS:</b> " + rich(L.try) }));
+    if (L.preset && Object.keys(L.preset).length) lbox.appendChild(el("button", { "class": "btn warn", text: "Push the model there", onclick: function () { applyPreset(L.preset, "limitation lab"); } }));
+    lbox.appendChild(el("p", { html: "<b>OBSERVE:</b> " + rich(L.observe) }));
+    lbox.appendChild(el("details", null, [el("summary", { text: "Correct interpretation" }), el("p", { html: rich(L.explain) })]));
+
+    // claims
+    var cl = $("claims");
+    (SPEC.claims || []).forEach(function (c) {
+      cl.appendChild(el("li", { html: tag(c.tag) + " " + rich(c.text) + (c.ref ? ' <span class="ref">[' + rich(c.ref) + "]</span>" : "") }));
+    });
+    // build checks
+    var bv = BUILD.validation || {};
+    $("buildinfo").innerHTML = "<p>This page was generated by an agent and machine-checked before publishing: <b>" +
+      (bv.states || 0) + "</b> input states (defaults, control extremes, equal/dominant cases, every preset) were executed; outputs were checked for NaN/∞, every control was verified to change a computed quantity, and the invariants below were tested in every state. Result: <b>" +
+      (bv.ok ? "all passed" : "issues remained (" + (bv.errors || []).length + ")") + "</b>" + (BUILD.revisions ? ", after " + BUILD.revisions + " automatic revision(s)" : "") + ".</p>" +
+      (bv.ok ? "" : "<ul class='errs'>" + (bv.errors || []).map(function (e) { return "<li>" + rich(e) + "</li>"; }).join("") + "</ul>");
+  }
+
+  // ---------------- mechanism map ----------------
+  function renderMap() {
+    var m = $("mechmap");
+    var stages = SPEC.stages || [];
+    stages.forEach(function (s, i) {
+      var node = el("button", { "class": "stage", id: "stage-" + s.id, title: "Click to inspect this intermediate quantity", onclick: function () { inspect(s.id); } }, [
+        el("div", { "class": "sl", html: rich(s.label) }),
+        el("div", { "class": "sx", html: rich(s.expr || "") }),
+        el("div", { "class": "sv", id: "sv-" + s.id })
+      ]);
+      m.appendChild(node);
+      if (i < stages.length - 1) m.appendChild(el("div", { "class": "arrow", text: "→" }));
+    });
+  }
+  function inspect(id) {
+    var s = (SPEC.stages || []).filter(function (x) { return x.id === id; })[0];
+    if (!s) return;
+    document.querySelectorAll(".stage").forEach(function (n) { n.classList.toggle("sel", n.id === "stage-" + id); });
+    var html = "<b>" + rich(s.label) + "</b>" + (s.expr ? " &nbsp;<code class='ex'>" + rich(s.expr) + "</code>" : "") + "<p>" + rich(s.desc || "") + "</p>";
+    (s.keys || []).forEach(function (k) { html += "<div class='kv'><span class='k'>" + rich(k) + "</span> = " + valueHtml(val(k)) + "</div>"; });
+    $("inspect").innerHTML = html;
+    $("inspect").dataset.stage = id;
+  }
+  function miniViz(v) {
+    if (typeof v === "number") return '<span class="mv">' + fmt(v, 3) + "</span>";
+    if (typeof v === "boolean") return '<span class="mv">' + v + "</span>";
+    if (!Array.isArray(v) || !v.length) return "";
+    var w = 84, h = 24, out = '<svg class="spark" viewBox="0 0 ' + w + " " + h + '" width="' + w + '" height="' + h + '">';
+    if (Array.isArray(v[0])) {
+      var r = v.length, c = v[0].length, flat = [].concat.apply([], v).filter(isFinite);
+      var mx = Math.max.apply(null, flat.map(Math.abs)) || 1, cw = Math.min(w / c, 14), ch = h / r;
+      v.forEach(function (row, i) { row.forEach(function (x, j) { out += '<rect x="' + (j * cw) + '" y="' + (i * ch) + '" width="' + (cw - 1) + '" height="' + (ch - 1) + '" fill="' + (x < 0 ? "var(--s2)" : "var(--s1)") + '" fill-opacity="' + (0.12 + 0.88 * Math.abs(x) / mx).toFixed(2) + '"/>'; }); });
+    } else {
+      var nums = v.map(Number).filter(isFinite);
+      if (!nums.length) return "";
+      var m2 = Math.max.apply(null, nums.map(Math.abs)) || 1, n = Math.min(v.length, 40), bw = w / n;
+      var hasNeg = nums.some(function (x) { return x < 0; }), base = hasNeg ? h / 2 : h;
+      for (var i = 0; i < n; i++) { var x = Number(v[i]); if (!isFinite(x)) continue; var bh = Math.abs(x) / m2 * (hasNeg ? h / 2 : h); out += '<rect x="' + (i * bw + 0.5) + '" y="' + (x >= 0 ? base - bh : base) + '" width="' + Math.max(bw - 1.5, 1) + '" height="' + Math.max(bh, 0.6) + '" fill="var(--s1)"/>'; }
+    }
+    return out + "</svg>";
+  }
+  function renderStageValues() {
+    (SPEC.stages || []).forEach(function (s) {
+      var box = $("sv-" + s.id); if (!box) return;
+      var keys = (s.keys || []).filter(function (k) { return val(k) !== undefined; }).slice(0, 2);
+      box.innerHTML = keys.map(function (k) { return miniViz(val(k)); }).join(" ");
+    });
+  }
+  function valueHtml(v) {
+    if (Array.isArray(v)) {
+      if (v.length && Array.isArray(v[0])) return "<table class='mini'>" + v.map(function (r) { return "<tr>" + r.map(function (x) { return "<td>" + fmt(x) + "</td>"; }).join("") + "</tr>"; }).join("") + "</table>";
+      return "[" + v.map(function (x) { return fmt(x); }).join(", ") + "]";
+    }
+    return "<b>" + fmt(v, 4) + "</b>";
+  }
+
+  // ---------------- controls ----------------
+  function renderControls() {
+    var box = $("controls");
+    box.innerHTML = "";
+    (SPEC.controls || []).forEach(function (c) {
+      var wrap = el("div", { "class": "ctrl", id: "ctrl-" + c.id });
+      var head = el("label", { "class": "cl", html: rich(c.label || c.id) });
+      wrap.appendChild(head);
+      if (c.type === "slider") {
+        var out = el("output", { "class": "cv", id: "cv-" + c.id });
+        head.appendChild(out);
+        head.appendChild(el("button", { "class": "anim", type: "button", title: "Animate: sweep this input from min to max and watch everything downstream", "aria-label": "Animate " + (c.label || c.id), text: anim.id === c.id ? "■" : "▶", onclick: function (ev) { ev.preventDefault(); toggleAnim(c); } }));
+        var r = el("input", { type: "range", min: c.min, max: c.max, step: c.step || (c.max - c.min) / 100, value: state.inp[c.id], "aria-label": c.label || c.id });
+        r.addEventListener("input", function () { setInput(c.id, Number(r.value)); });
+        wrap.appendChild(r);
+        wrap.appendChild(el("div", { "class": "range", html: "<span>" + fmt(c.min) + "</span><span>" + fmt(c.max) + "</span>" }));
+      } else if (c.type === "toggle") {
+        var cb = el("input", { type: "checkbox", "aria-label": c.label || c.id });
+        cb.checked = !!state.inp[c.id];
+        cb.addEventListener("change", function () { setInput(c.id, cb.checked); });
+        head.insertBefore(cb, head.firstChild);
+        head.classList.add("tog");
+      } else if (c.type === "select") {
+        var sel = el("select", { "aria-label": c.label || c.id });
+        (c.options || []).forEach(function (o) {
+          var v = (o && typeof o === "object") ? o.value : o, l = (o && typeof o === "object") ? (o.label || o.value) : o;
+          var op = el("option", { value: String(v), text: String(l) });
+          if (String(v) === String(state.inp[c.id])) op.selected = true;
+          sel.appendChild(op);
+        });
+        sel.addEventListener("change", function () {
+          var o = (c.options || []).map(function (o) { return (o && typeof o === "object") ? o.value : o; }).filter(function (v) { return String(v) === sel.value; })[0];
+          setInput(c.id, o);
+        });
+        wrap.appendChild(sel);
+      } else if (c.type === "vector") {
+        var g = el("div", { "class": "vec" });
+        var labs = labelsFor(c.labels, state.inp[c.id].length);
+        state.inp[c.id].forEach(function (v, i) {
+          var row = el("div", { "class": "vrow" });
+          row.appendChild(el("span", { "class": "vl", html: rich(labs[i] !== undefined ? labs[i] : String(i + 1)) }));
+          var rr = el("input", { type: "range", min: C.isNum(c.min) ? c.min : 0, max: C.isNum(c.max) ? c.max : 1, step: c.step || 0.01, value: v, "aria-label": (c.label || c.id) + " " + (i + 1) });
+          var num = el("input", { type: "number", min: C.isNum(c.min) ? c.min : "", max: C.isNum(c.max) ? c.max : "", step: c.step || 0.01, value: v, "class": "num" });
+          rr.addEventListener("input", function () { num.value = rr.value; setVec(c.id, i, Number(rr.value)); });
+          num.addEventListener("change", function () { setVec(c.id, i, Number(num.value)); });
+          row.appendChild(rr); row.appendChild(num);
+          g.appendChild(row);
+        });
+        wrap.appendChild(g);
+      } else if (c.type === "matrix") {
+        var m = state.inp[c.id];
+        var rl = labelsFor(c.row_labels, m.length), cl = labelsFor(c.col_labels, (m[0] || []).length);
+        var t = el("table", { "class": "mat" });
+        t.appendChild(el("tr", null, [el("th")].concat(cl.map(function (x) { return el("th", { html: rich(x) }); }))));
+        m.forEach(function (row, i) {
+          var tr = el("tr", null, [el("th", { html: rich(rl[i]) })]);
+          row.forEach(function (v, j) {
+            var inp = el("input", { type: "number", step: c.step || 0.1, value: v, min: C.isNum(c.min) ? c.min : "", max: C.isNum(c.max) ? c.max : "", "aria-label": (c.label || c.id) + "[" + (i + 1) + "," + (j + 1) + "]" });
+            inp.addEventListener("input", function () { if (inp.value !== "" && isFinite(Number(inp.value))) setMat(c.id, i, j, Number(inp.value)); });
+            tr.appendChild(el("td", null, [inp]));
+          });
+          t.appendChild(tr);
+        });
+        wrap.appendChild(t);
+      }
+      if (c.desc) wrap.appendChild(el("div", { "class": "cd", html: rich(c.desc) }));
+      box.appendChild(wrap);
+    });
+    syncControlLabels();
+  }
+  var anim = { id: null, timer: null };
+  function toggleAnim(c) {
+    var was = anim.id;
+    stopAnim();
+    if (was === c.id) return;
+    anim.id = c.id;
+    var steps = isIntSlider(c) ? Math.round(c.max - c.min) : 60, k = 0, delay = isIntSlider(c) ? Math.max(350, 3000 / Math.max(steps, 1)) : 55;
+    state.animating = true;
+    renderControls();
+    anim.timer = setInterval(function () {
+      var x = c.min + (c.max - c.min) * k / steps;
+      setInput(c.id, x);
+      var r = document.querySelector("#ctrl-" + c.id + " input[type=range]"); if (r) r.value = x;
+      if (++k > steps) { stopAnim(); }
+    }, delay);
+  }
+  function stopAnim() {
+    if (anim.timer) clearInterval(anim.timer);
+    var had = anim.id; anim.id = null; anim.timer = null; state.animating = false;
+    if (had) renderControls();
+  }
+  function syncControlLabels() {
+    (SPEC.controls || []).forEach(function (c) {
+      if (c.type === "slider") { var o = $("cv-" + c.id); if (o) o.textContent = fmt(state.inp[c.id], 4) + (c.unit ? " " + c.unit : ""); }
+    });
+  }
+  function needsRebuild(id) {
+    return (SPEC.controls || []).some(function (c) { return c.length_from === id || c.rows_from === id || c.cols_from === id; });
+  }
+  function setInput(id, v) {
+    var old = state.inp[id];
+    var next = C.clone(state.inp); next[id] = v;
+    state.inp = C.fixInputs(SPEC, next);
+    state.lastControl = id; state.lastOld = old;
+    if (needsRebuild(id)) renderControls(); else syncControlLabels();
+    update();
+  }
+  function setVec(id, i, v) { var a = C.clone(state.inp[id]); a[i] = v; setInput(id, a); }
+  function setMat(id, i, j, v) { var a = C.clone(state.inp[id]); a[i][j] = v; setInput(id, a); }
+  function applyPreset(p, why) {
+    var next = Object.assign(C.fixInputs(SPEC, {}), C.clone(p || {}));
+    state.inp = C.fixInputs(SPEC, next);
+    state.lastControl = "__preset"; state.lastOld = why;
+    renderControls(); update();
+    $("lab").scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  // ---------------- views ----------------
+  function renderViewShells() {
+    var box = $("views");
+    (SPEC.views || []).forEach(function (v, i) {
+      v._id = v.id || ("v" + i);
+      var card = el("figure", { "class": "card view", id: "view-" + v._id }, [
+        el("figcaption", { "class": "vt", html: rich(v.title || "") + (v.stage ? ' <span class="vs">stage: ' + rich(stageLabel(v.stage)) + "</span>" : "") }),
+        el("div", { "class": "vb", id: "vb-" + v._id }),
+        v.caption ? el("div", { "class": "vc", html: "<b>WATCH:</b> " + rich(v.caption) }) : null
+      ]);
+      box.appendChild(card);
+    });
+  }
+  function stageLabel(id) { var s = (SPEC.stages || []).filter(function (x) { return x.id === id; })[0]; return s ? s.label.replace(/<[^>]+>/g, "") : id; }
+  function drawViews() {
+    (SPEC.views || []).forEach(function (v) {
+      var b = $("vb-" + v._id);
+      try {
+        b.innerHTML = "";
+        ({ bars: drawBars, line: drawLine, heatmap: drawHeat, scatter: drawScatter, table: drawTable, canvas: drawCanvas, sweep: drawSweep, stacked: drawStacked }[v.type] || function () {})(b, v);
+      } catch (e) { b.innerHTML = "<div class='err'>View error: " + rich(e.message) + "</div>"; }
+    });
+  }
+  var W = 560;
+  function axes(g, x0, y0, w, h, yr, ylabel, xlabel) {
+    for (var t = yr.lo; t <= yr.hi + yr.step * 1e-6; t += yr.step) {
+      var y = y0 + h - (t - yr.lo) / (yr.hi - yr.lo) * h;
+      g.appendChild(svg("line", { x1: x0, x2: x0 + w, y1: y, y2: y, "class": "grid" }));
+      g.appendChild(svg("text", { x: x0 - 6, y: y + 4, "text-anchor": "end", "class": "tick" }, fmt(t, 3)));
+    }
+    g.appendChild(svg("line", { x1: x0, x2: x0, y1: y0, y2: y0 + h, "class": "axis" }));
+    if (ylabel) g.appendChild(svg("text", { x: 12, y: y0 + h / 2, transform: "rotate(-90 12 " + (y0 + h / 2) + ")", "text-anchor": "middle", "class": "alabel" }, ylabel));
+    if (xlabel) g.appendChild(svg("text", { x: x0 + w / 2, y: y0 + h + 38, "text-anchor": "middle", "class": "alabel" }, xlabel));
+  }
+  function drawBars(b, v) {
+    var series = v.series || [{ key: v.key, label: v.label || "" }];
+    var data = series.map(function (s) { return (val(s.key) || []).map(Number); });
+    var n = Math.max.apply(null, data.map(function (d) { return d.length; }).concat([0]));
+    var labs = labelsFor(v.labels, n);
+    var all = [].concat.apply([], data);
+    var lo = C.isNum(v.ymin) ? v.ymin : Math.min(0, Math.min.apply(null, all));
+    var hi = C.isNum(v.ymax) ? v.ymax : Math.max(0, Math.max.apply(null, all));
+    var yr = niceRange(lo, hi); if (C.isNum(v.ymin)) yr.lo = v.ymin; if (C.isNum(v.ymax)) yr.hi = v.ymax;
+    var H = 250, x0 = 52, y0 = 14, w = W - x0 - 10, h = H - 70;
+    var s = svg("svg", { viewBox: "0 0 " + W + " " + H, "class": "chart", role: "img", "aria-label": v.title || "bar chart" });
+    axes(s, x0, y0, w, h, yr, v.ylabel, v.xlabel);
+    var hl = typeof v.highlight === "string" ? val(v.highlight) : v.highlight;
+    var gw = w / Math.max(n, 1), bw = Math.min(60, gw * 0.8 / series.length);
+    var yz = y0 + h - (Math.max(yr.lo, Math.min(yr.hi, 0)) - yr.lo) / (yr.hi - yr.lo) * h;
+    for (var i = 0; i < n; i++) {
+      var cx = x0 + gw * (i + 0.5);
+      data.forEach(function (d, si) {
+        var dv = d[i]; if (!C.isNum(dv)) return;
+        var yv = y0 + h - (Math.max(yr.lo, Math.min(yr.hi, dv)) - yr.lo) / (yr.hi - yr.lo) * h;
+        var x = cx - bw * series.length / 2 + si * bw;
+        var cls = "bar" + ((hl === i) ? " hl" : "");
+        s.appendChild(svg("rect", { x: x + 1, y: Math.min(yv, yz), width: Math.max(bw - 2, 1), height: Math.max(Math.abs(yz - yv), 0.5), "class": cls, fill: PAL[si % PAL.length] }));
+        if (n * series.length <= 16) s.appendChild(svg("text", { x: x + bw / 2, y: Math.min(yv, yz) - 4, "text-anchor": "middle", "class": "bv" }, fmt(dv, v.digits !== undefined ? v.digits : 3)));
+      });
+      s.appendChild(svg("text", { x: cx, y: y0 + h + 16, "text-anchor": "middle", "class": "tick" }, labs[i] !== undefined ? labs[i] : ""));
+    }
+    if (C.isNum(v.ref_line)) { var yl = y0 + h - (v.ref_line - yr.lo) / (yr.hi - yr.lo) * h; s.appendChild(svg("line", { x1: x0, x2: x0 + w, y1: yl, y2: yl, "class": "refl" })); }
+    b.appendChild(s);
+    if (series.length > 1) b.appendChild(legend(series));
+  }
+  function legend(series) {
+    return el("div", { "class": "legend", html: series.map(function (s, i) { return '<span><i style="background:' + PAL[i % PAL.length] + '"></i>' + rich(s.label || s.key) + "</span>"; }).join("") });
+  }
+  function arr(x) { return Array.isArray(x) ? x : (x === undefined || x === null ? [] : [x]); }
+  function drawLine(b, v) {
+    var xs = arr(val(v.x)).map(Number);
+    var series = (v.series || []).map(function (sr) { return { label: sr.label, dashed: sr.dashed, y: arr(val(sr.key)).map(Number) }; });
+    var pts = [];
+    (v.points || []).forEach(function (p) {
+      var px = val(p.x), py = val(p.y);
+      if (Array.isArray(px) && Array.isArray(py)) {
+        var lk = p.labels !== undefined ? p.labels : (Array.isArray(val(p.label)) ? p.label : undefined);
+        var labs = labelsFor(lk, px.length);
+        if (lk === p.label) p = Object.assign({}, p, { label: "" });
+        var pl = p.label;
+        px.forEach(function (x, i) { pts.push({ x: Number(x), y: Number(py[i]), label: (pl ? pl + " " : "") + labs[i] }); });
+      } else pts.push({ x: Number(px), y: Number(py), label: p.label });
+    });
+    var vl = (v.vlines || []).map(function (l) { return { v: Number(val(l.key)), label: l.label }; });
+    var hl = (v.hlines || []).map(function (l) { return { v: Number(val(l.key)), label: l.label }; });
+    lineChart(b, v, xs, series, pts, vl, hl);
+  }
+  /* generic line chart: xs, series [{label,y,dashed}], points [{x,y,label}], vlines/hlines [{v,label}] */
+  function lineChart(b, v, xs, series, pts, vlines, hlines, opts) {
+    opts = opts || {};
+    pts = pts.filter(function (p) { return isFinite(p.x) && isFinite(p.y); });
+    var allY = [].concat.apply([], series.map(function (s) { return s.y; })).concat(pts.map(function (p) { return p.y; })).filter(isFinite);
+    hlines.forEach(function (l) { if (isFinite(l.v)) allY.push(l.v); });
+    if (!allY.length) allY = [0, 1];
+    var xsF = xs.filter(isFinite).concat(pts.map(function (p) { return p.x; }));
+    var xmin = C.isNum(v.xmin) ? v.xmin : Math.min.apply(null, xsF), xmax = C.isNum(v.xmax) ? v.xmax : Math.max.apply(null, xsF);
+    if (!isFinite(xmin) || !isFinite(xmax)) { xmin = 0; xmax = 1; }
+    if (!(xmax > xmin)) { xmax = xmin + 1; }
+    var yr = niceRange(C.isNum(v.ymin) ? v.ymin : Math.min.apply(null, allY), C.isNum(v.ymax) ? v.ymax : Math.max.apply(null, allY));
+    if (C.isNum(v.ymin)) yr.lo = v.ymin; if (C.isNum(v.ymax)) yr.hi = v.ymax;
+    var H = 260, x0 = 56, y0 = 14, w = W - x0 - 14, h = H - 74;
+    var X = function (x) { return x0 + (x - xmin) / (xmax - xmin) * w; };
+    var Y = function (y) { return y0 + h - (Math.max(yr.lo, Math.min(yr.hi, y)) - yr.lo) / (yr.hi - yr.lo) * h; };
+    var s = svg("svg", { viewBox: "0 0 " + W + " " + H, "class": "chart", role: "img", "aria-label": v.title || "line chart" });
+    axes(s, x0, y0, w, h, yr, v.ylabel, v.xlabel);
+    var xr = niceRange(xmin, xmax);
+    for (var t = xr.lo; t <= xr.hi + 1e-9; t += xr.step) { if (t < xmin - 1e-9 || t > xmax + 1e-9) continue; s.appendChild(svg("text", { x: X(t), y: y0 + h + 16, "text-anchor": "middle", "class": "tick" }, fmt(t, 3))); }
+    s.appendChild(svg("line", { x1: x0, x2: x0 + w, y1: y0 + h, y2: y0 + h, "class": "axis" }));
+    hlines.forEach(function (l) { if (!isFinite(l.v)) return; s.appendChild(svg("line", { x1: x0, x2: x0 + w, y1: Y(l.v), y2: Y(l.v), "class": "refl" })); s.appendChild(svg("text", { x: x0 + w - 4, y: Y(l.v) - 4, "text-anchor": "end", "class": "rl" }, (l.label || "") + " " + fmt(l.v))); });
+    vlines.forEach(function (l) { if (!isFinite(l.v)) return; s.appendChild(svg("line", { x1: X(l.v), x2: X(l.v), y1: y0, y2: y0 + h, "class": "refl" })); s.appendChild(svg("text", { x: X(l.v) + 4, y: y0 + h - 6, "class": "rl" }, (l.label || "") + " = " + fmt(l.v))); });
+    series.forEach(function (sr, si) {
+      var d = "";
+      for (var i = 0; i < Math.min(xs.length, sr.y.length); i++) { if (!isFinite(sr.y[i]) || !isFinite(xs[i])) { d += ""; continue; } d += (d ? "L" : "M") + X(xs[i]).toFixed(1) + "," + Y(sr.y[i]).toFixed(1); }
+      s.appendChild(svg("path", { d: d, "class": "ln", stroke: PAL[si % PAL.length], "stroke-dasharray": sr.dashed ? "6 4" : "" }));
+      if (opts.markers) for (var j = 0; j < Math.min(xs.length, sr.y.length); j++) if (isFinite(sr.y[j])) s.appendChild(svg("circle", { cx: X(xs[j]), cy: Y(sr.y[j]), r: 3, fill: PAL[si % PAL.length] }));
+    });
+    var many = pts.length > 3;
+    pts.forEach(function (p, i) {
+      if (opts.dropLines !== false) s.appendChild(svg("line", { x1: X(p.x), x2: X(p.x), y1: Y(p.y), y2: y0 + h, "class": "drop" }));
+      s.appendChild(svg("circle", { cx: X(p.x), cy: Y(p.y), r: many ? 5 : 6, "class": "pt", fill: p.color || (many ? PAL[i % PAL.length] : "") }));
+      var ly = many ? Y(p.y) - 8 - (i % 2) * 12 : (i % 2 ? Y(p.y) + 18 : Y(p.y) - 8);
+      s.appendChild(svg("text", { x: X(p.x) + 8, y: ly, "class": "rl" }, (p.label ? p.label + " " : "") + (many ? "" : "(" + fmt(p.x) + ", " + fmt(p.y) + ")")));
+    });
+    b.appendChild(s);
+    var legendItems = series.filter(function (sr) { return sr.label; });
+    if (legendItems.length > 1 || (legendItems.length === 1 && !opts.noLegend)) b.appendChild(legend(series));
+  }
+
+  /* sweep: vary one slider across its range with everything else fixed, recompute with the real model */
+  function drawSweep(b, v) {
+    var c = ctrlById[v.control];
+    if (!c || c.type !== "slider") throw new Error("sweep needs a slider control");
+    var ys = (v.y || []).map(function (y) { return typeof y === "string" ? { key: y } : y; });
+    var integer = isIntSlider(c);
+    var n = integer ? Math.min(Math.round(c.max - c.min) + 1, 200) : (v.samples || 81);
+    var xs = [], series = ys.map(function (y) { return { label: y.label || y.key, dashed: y.dashed, y: [] }; });
+    for (var i = 0; i < n; i++) {
+      var x = integer ? c.min + i : c.min + (c.max - c.min) * i / (n - 1);
+      var inp = C.clone(state.inp); inp[c.id] = x;
+      var o;
+      try { o = C.run(comp, C.fixInputs(SPEC, inp)); } catch (e) { o = {}; }
+      xs.push(x);
+      ys.forEach(function (y, k) { var yy = Number(C.getPath(o, y.key)); series[k].y.push(isFinite(yy) ? yy : NaN); });
+    }
+    var cur = state.inp[c.id];
+    var pts = ys.map(function (y, k) { return { x: cur, y: Number(val(y.key)), label: "now", color: PAL[k % PAL.length] }; });
+    var vv = Object.assign({}, v, { xlabel: v.xlabel || stripTags(c.label || c.id), ylabel: v.ylabel || (ys.length === 1 ? stripTags(ys[0].label || ys[0].key) : "") });
+    lineChart(b, vv, xs, series, pts, [], (v.hlines || []).map(function (l) { return { v: Number(val(l.key)), label: l.label }; }), { markers: integer && n <= 25, dropLines: true, noLegend: ys.length === 1 });
+  }
+  function stripTags(x) { return String(x || "").replace(/<[^>]+>/g, ""); }
+  function isIntSlider(c) { return !!(c.integer || (C.isNum(c.step) && c.step >= 1 && Math.round(c.step) === c.step && Math.round(c.min) === c.min)); }
+
+  /* stacked: parts of a total laid end to end (accumulation), optional maximum reference */
+  function drawStacked(b, v) {
+    var parts = arr(val(v.key)).map(Number);
+    var labs = labelsFor(v.labels, parts.length);
+    var total = parts.reduce(function (a, x) { return a + (isFinite(x) ? Math.max(0, x) : 0); }, 0);
+    var ref = v.max_key ? Number(val(v.max_key)) : NaN;
+    var scaleMax = Math.max(total, isFinite(ref) ? ref : 0) || 1;
+    var H = 120, x0 = 14, w = W - 28, y0 = 30, bh = 40;
+    var s = svg("svg", { viewBox: "0 0 " + W + " " + H, "class": "chart", role: "img", "aria-label": v.title || "stacked contributions" });
+    var x = x0;
+    parts.forEach(function (p, i) {
+      if (!(p > 0)) return;
+      var ww = p / scaleMax * w;
+      s.appendChild(svg("rect", { x: x, y: y0, width: Math.max(ww - 1, 0.5), height: bh, fill: PAL[i % PAL.length], "class": "seg-r" }));
+      if (ww > 34) s.appendChild(svg("text", { x: x + ww / 2, y: y0 + bh / 2 + 4, "text-anchor": "middle", "class": "inbar" }, labs[i]));
+      if (ww > 34) s.appendChild(svg("text", { x: x + ww / 2, y: y0 + bh + 14, "text-anchor": "middle", "class": "tick" }, fmt(p, v.digits !== undefined ? v.digits : 3)));
+      x += ww;
+    });
+    s.appendChild(svg("line", { x1: x0 + total / scaleMax * w, x2: x0 + total / scaleMax * w, y1: y0 - 10, y2: y0 + bh + 2, "class": "axis" }));
+    s.appendChild(svg("text", { x: Math.min(x0 + total / scaleMax * w, W - 120), y: y0 - 14, "class": "rl" }, (v.total_label || "total") + " = " + fmt(total, 4) + (v.unit ? " " + v.unit : "")));
+    if (isFinite(ref)) {
+      var xr = x0 + ref / scaleMax * w;
+      s.appendChild(svg("rect", { x: x0, y: y0, width: ref / scaleMax * w, height: bh, "class": "maxbox" }));
+      s.appendChild(svg("text", { x: Math.max(xr - 4, 60), y: y0 + bh + 30, "text-anchor": "end", "class": "rl" }, (v.max_label || "maximum") + " = " + fmt(ref, 4)));
+    }
+    b.appendChild(s);
+  }
+  function heatColor(t, div) {
+    if (div) { // diverging blue-white-red, t in [-1,1]
+      var a = Math.min(1, Math.abs(t));
+      return t >= 0 ? "rgba(214,72,60," + (0.08 + 0.8 * a) + ")" : "rgba(52,110,214," + (0.08 + 0.8 * a) + ")";
+    }
+    return "rgba(52,110,214," + (0.06 + 0.86 * Math.max(0, Math.min(1, t))) + ")";
+  }
+  function drawHeat(b, v) {
+    var m = val(v.key) || [];
+    var rl = labelsFor(v.row_labels, m.length), cl = labelsFor(v.col_labels, (m[0] || []).length);
+    var flat = [].concat.apply([], m).filter(isFinite);
+    var lo = C.isNum(v.vmin) ? v.vmin : Math.min.apply(null, flat), hi = C.isNum(v.vmax) ? v.vmax : Math.max.apply(null, flat);
+    var amax = Math.max(Math.abs(lo), Math.abs(hi)) || 1;
+    var div = v.diverging || lo < 0;
+    var t = el("table", { "class": "heat" });
+    t.appendChild(el("tr", null, [el("th", { html: rich(v.corner || "") })].concat(cl.map(function (x) { return el("th", { html: rich(x) }); }))));
+    m.forEach(function (row, i) {
+      var tr = el("tr", null, [el("th", { html: rich(rl[i]) })]);
+      row.forEach(function (x) {
+        var tt = div ? x / amax : (hi > lo ? (x - lo) / (hi - lo) : 0.5);
+        var td = el("td", { text: fmt(x, v.digits !== undefined ? v.digits : 3) });
+        td.style.background = heatColor(tt, div);
+        if (Math.abs(tt) > 0.6) td.style.color = "#fff";
+        tr.appendChild(td);
+      });
+      if (v.row_sums) tr.appendChild(el("td", { "class": "rs", text: "Σ=" + fmt(row.reduce(function (a, b) { return a + b; }, 0), 4) }));
+      t.appendChild(tr);
+    });
+    b.appendChild(t);
+  }
+  function drawScatter(b, v) {
+    var pts = (val(v.key) || []).filter(function (p) { return Array.isArray(p) && isFinite(p[0]) && isFinite(p[1]); });
+    var segs = typeof v.segments === "string" ? (val(v.segments) || []) : [];
+    var xsAll = pts.map(function (p) { return p[0]; }), ysAll = pts.map(function (p) { return p[1]; });
+    segs.forEach(function (s) { xsAll.push(s[0], s[2]); ysAll.push(s[1], s[3]); });
+    if (v.arrows) { xsAll.push(0); ysAll.push(0); }
+    var xr = niceRange(C.isNum(v.xmin) ? v.xmin : Math.min.apply(null, xsAll), C.isNum(v.xmax) ? v.xmax : Math.max.apply(null, xsAll));
+    var yr = niceRange(C.isNum(v.ymin) ? v.ymin : Math.min.apply(null, ysAll), C.isNum(v.ymax) ? v.ymax : Math.max.apply(null, ysAll));
+    if (v.equal_axes) { var lo = Math.min(xr.lo, yr.lo), hi = Math.max(xr.hi, yr.hi); xr = niceRange(lo, hi); yr = xr; }
+    var H = 300, x0 = 56, y0 = 14, w = W - x0 - 14, h = H - 74;
+    var X = function (x) { return x0 + (x - xr.lo) / (xr.hi - xr.lo) * w; };
+    var Y = function (y) { return y0 + h - (y - yr.lo) / (yr.hi - yr.lo) * h; };
+    var s = svg("svg", { viewBox: "0 0 " + W + " " + H, "class": "chart", role: "img", "aria-label": v.title || "scatter" });
+    s.appendChild(svg("defs", {})).innerHTML = '<marker id="ah-' + v._id + '" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0L10,5L0,10z" fill="currentColor"/></marker>';
+    axes(s, x0, y0, w, h, yr, v.ylabel, v.xlabel);
+    for (var t = xr.lo; t <= xr.hi + 1e-9; t += xr.step) s.appendChild(svg("text", { x: X(t), y: y0 + h + 16, "text-anchor": "middle", "class": "tick" }, fmt(t, 3)));
+    s.appendChild(svg("line", { x1: x0, x2: x0 + w, y1: Y(Math.max(yr.lo, Math.min(yr.hi, 0))), y2: Y(Math.max(yr.lo, Math.min(yr.hi, 0))), "class": "axis" }));
+    segs.forEach(function (sg) { s.appendChild(svg("line", { x1: X(sg[0]), y1: Y(sg[1]), x2: X(sg[2]), y2: Y(sg[3]), "class": "seg" })); });
+    var labs = labelsFor(v.labels, pts.length);
+    pts.forEach(function (p, i) {
+      var col = PAL[i % PAL.length];
+      if (v.arrows) s.appendChild(svg("line", { x1: X(0), y1: Y(0), x2: X(p[0]), y2: Y(p[1]), stroke: col, "stroke-width": 2.5, style: "color:" + col, "marker-end": "url(#ah-" + v._id + ")" }));
+      else s.appendChild(svg("circle", { cx: X(p[0]), cy: Y(p[1]), r: 5, fill: col }));
+      s.appendChild(svg("text", { x: X(p[0]) + 7, y: Y(p[1]) - 7, "class": "rl" }, labs[i]));
+    });
+    b.appendChild(s);
+  }
+  function drawTable(b, v) {
+    var cols = v.columns || [];
+    var data = cols.map(function (c) { return val(c.key) || []; });
+    var n = Math.max.apply(null, data.map(function (d) { return d.length; }).concat([0]));
+    var t = el("table", { "class": "dt" });
+    t.appendChild(el("tr", null, cols.map(function (c) { return el("th", { html: rich(c.label || c.key) }); })));
+    for (var i = 0; i < n; i++) t.appendChild(el("tr", null, cols.map(function (c, j) { return el("td", { text: fmt(data[j][i], c.digits) }); })));
+    if (v.total_row) t.appendChild(el("tr", { "class": "tot" }, cols.map(function (c, j) {
+      if (j === 0) return el("td", { text: "Σ" });
+      var col = data[j]; return el("td", { text: col.every(function (x) { return typeof x === "number"; }) ? fmt(col.reduce(function (a, b) { return a + b; }, 0), c.digits) : "" });
+    })));
+    b.appendChild(t);
+  }
+  var drawFns = comp.draws;
+  function drawCanvas(b, v) {
+    var H = v.height || 260;
+    var cv = el("canvas", { width: W * 2, height: H * 2, "class": "chart", role: "img", "aria-label": v.title || "diagram" });
+    b.appendChild(cv);
+    var ctx = cv.getContext("2d");
+    ctx.scale(2, 2);
+    var cs = getComputedStyle(document.body);
+    ctx.fillStyle = cs.getPropertyValue("--fg"); ctx.strokeStyle = cs.getPropertyValue("--fg");
+    ctx.font = "12px system-ui, sans-serif";
+    drawFns[v._id](ctx, state.out, C.clone(state.inp), W, H);
+  }
+
+  // ---------------- readouts, why-panel, checks ----------------
+  function renderReadouts(changed) {
+    var box = $("readouts");
+    box.innerHTML = "";
+    (SPEC.readouts || []).forEach(function (r) {
+      var v = val(r.key);
+      var ch = changed.indexOf(r.key.split(".")[0]) >= 0;
+      box.appendChild(el("div", { "class": "ro" + (ch && !state.animating ? " flash" : "") }, [
+        el("div", { "class": "rk", html: rich(r.label || r.key) }),
+        el("div", { "class": "rv", html: Array.isArray(v) ? valueHtml(v) : fmt(v, r.digits !== undefined ? r.digits : 4) + (r.unit ? ' <span class="u">' + rich(r.unit) + "</span>" : "") })
+      ]));
+    });
+  }
+  function describeVal(v) { if (Array.isArray(v)) return Array.isArray(v[0]) ? "matrix" : "[" + v.map(function (x) { return fmt(x, 3); }).join(", ") + "]"; return fmt(v, 4); }
+  function whyPanel(changed) {
+    var box = $("why");
+    var stages = (SPEC.stages || []);
+    var hit = stages.filter(function (s) { return (s.keys || []).some(function (k) { return changed.indexOf(k.split(".")[0]) >= 0; }); });
+    document.querySelectorAll(".stage").forEach(function (n) { n.classList.remove("hot"); void n.offsetWidth; });
+    if (!state.animating) hit.forEach(function (s) { var n = $("stage-" + s.id); if (n) n.classList.add("hot"); });
+    (SPEC.views || []).forEach(function (v) {
+      var keys = [v.key, v.x, v.max_key].concat((v.series || []).map(function (s) { return s.key; })).concat((v.points || []).map(function (p) { return p.y; })).concat((v.columns || []).map(function (c) { return c.key; })).filter(Boolean);
+      var on = keys.some(function (k) { return changed.indexOf(String(k).split(".")[0]) >= 0; }) || ((v.type === "canvas" || v.type === "sweep") && changed.length);
+      var n = $("view-" + v._id); if (n) { n.classList.remove("hot"); void n.offsetWidth; if (on && !state.animating) n.classList.add("hot"); }
+    });
+    if (!state.lastControl) {
+      box.innerHTML = "<b>Why did this change?</b><p class='muted'>Move any control. This panel will trace the causal chain: control → changed intermediate quantities → visual.</p>";
+      return;
+    }
+    var html = "<b>Why did this change?</b>";
+    if (state.lastControl === "__preset") html += "<p>Loaded the setup for <b>" + rich(state.lastOld) + "</b>.</p>";
+    else {
+      var c = ctrlById[state.lastControl] || {};
+      html += "<p>You changed <b>" + rich(c.label || c.id) + "</b>" + (c.type === "slider" || c.type === "toggle" || c.type === "select" ? " from <code>" + rich(describeVal(state.lastOld)) + "</code> to <code>" + rich(describeVal(state.inp[c.id])) + "</code>" : "") + ".</p>";
+      if (c.effect) html += "<p>" + rich(c.effect) + "</p>";
+    }
+    if (hit.length) html += "<div class='chain'>" + hit.map(function (s) { return "<span>" + rich(s.label) + "</span>"; }).join(" → ") + "</div>";
+    else html += "<p class='muted'>No intermediate quantity changed (this input is outside the active path for the current settings).</p>";
+    var deltas = (SPEC.readouts || []).filter(function (r) { return changed.indexOf(r.key.split(".")[0]) >= 0 && !Array.isArray(val(r.key)); }).map(function (r) {
+      return "<li>" + rich(r.label || r.key) + ": " + fmt(C.getPath(state.prev || {}, r.key), 4) + " → <b>" + fmt(val(r.key), 4) + "</b></li>";
+    });
+    if (deltas.length) html += "<ul class='deltas'>" + deltas.join("") + "</ul>";
+    box.innerHTML = html;
+  }
+  function renderChecks() {
+    var res = C.evalChecks(comp, state.out, state.inp);
+    $("livechecks").innerHTML = res.map(function (r, i) {
+      var sp = (SPEC.checks || [])[i] || {};
+      return "<li class='" + (r.ok ? "ok" : "bad") + "'>" + (r.ok ? "✓" : "✗") + " " + rich(r.name) + (sp.why ? " <span class='muted'>— " + rich(sp.why) + "</span>" : "") + "</li>";
+    }).join("");
+    var nOk = res.filter(function (r) { return r.ok; }).length;
+    $("checkbadge").textContent = nOk + "/" + res.length + " invariants hold";
+    $("checkbadge").className = "badge " + (nOk === res.length ? "ok" : "bad");
+  }
+
+  function update() {
+    var err = $("runerr");
+    try {
+      var out = C.run(comp, state.inp);
+      state.prev = state.out; state.out = out; err.style.display = "none";
+    } catch (e) { err.style.display = "block"; err.textContent = "Calculation error: " + e.message; return; }
+    var changed = state.prev ? C.changedKeys(state.prev, state.out) : [];
+    renderReadouts(changed);
+    renderStageValues();
+    drawViews();
+    whyPanel(changed);
+    renderChecks();
+    if ($("inspect").dataset.stage) inspect($("inspect").dataset.stage);
+  }
+
+  function init() {
+    renderStatic();
+    renderMap();
+    renderControls();
+    renderViewShells();
+    $("reset").addEventListener("click", function () { state.inp = C.fixInputs(SPEC, {}); state.lastControl = "__preset"; state.lastOld = "defaults (reset)"; renderControls(); update(); });
+    if (comp.errors.length) { $("runerr").style.display = "block"; $("runerr").textContent = comp.errors.join("; "); }
+    update();
+    if ((SPEC.stages || [])[0]) inspect(SPEC.stages[0].id);
+    window.__journalio = { spec: SPEC, state: state, setInput: setInput, applyPreset: applyPreset };
+  }
+  init();
+})();
+</script>
+</body>
+</html>

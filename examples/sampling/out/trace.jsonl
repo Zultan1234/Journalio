@@ -1,0 +1,13 @@
+{"t": 0.0, "stage": "start", "action": "args", "result": "ok", "model": "deepseek/deepseek-v4.1-flash", "input": "case.json", "python": "3.14.5"}
+{"t": 0.001, "stage": "input", "action": "read_case", "result": "ok", "fields": ["audience", "excerpt", "focus", "source_url"]}
+{"t": 0.001, "stage": "source", "action": "read_excerpt", "result": "field 'excerpt'", "chars": 759}
+{"t": 0.001, "stage": "source", "action": "evidence_ready", "result": "ok", "excerpt_chars": 759, "extra_fields": []}
+{"t": 1.19, "stage": "figures", "action": "scan_page", "result": "0 relevant figure(s)", "page": "https://doi.org/10.1109/JRPROC.1949.232969", "candidates": []}
+{"t": 1.19, "stage": "figures", "action": "embed", "result": "0 figure(s)", "bytes": 0}
+{"t": 38.306, "stage": "llm", "action": "call", "result": "ok", "purpose": "generate_spec", "model": "deepseek/deepseek-v4.1-flash", "generation_id": "gen-1791023726-9SI3WwdEO1ROmokGA3J0", "request_no": 1, "prompt_tokens": 1511, "completion_tokens": 1997, "reasoning_tokens": 0, "cached_tokens": 1488, "cost": 0.00081552, "total_tokens": 3508, "finish_reason": "stop", "elapsed_s": 38.3, "response_chars": 5427, "cumulative_tokens": 3508}
+{"t": 38.308, "stage": "generate", "action": "parse_spec", "result": "ok", "keys": ["checks", "claims", "compute", "controls", "equations", "explorations", "first_action", "intro", "limitation", "paper", "readouts", "scope", "stages", "symbols", "theme", "title", "views"], "finish_reason": "stop", "response_chars": 5427}
+{"t": 38.308, "stage": "normalize", "action": "auto_fix", "result": "1 fix(es)", "fixes": ["paper.url filled from case"]}
+{"t": 38.434, "stage": "validate", "action": "execute_spec", "result": "pass", "engine": "mini-racer(V8)", "states": 40, "distinct_states": 13, "checks": ["alias matches when above Nyquist", "alias and signal agree at samples", "alias never exceeds half the sampling rate", "alias is nonnegative"], "control_effect": {"f0": true, "fs": true, "show": true}, "errors": [], "warnings": [], "engine_issues": null}
+{"t": 38.434, "stage": "theme", "action": "resolve", "result": "ok", "hue": 205, "motif": "wave", "style": "classic", "source": "model"}
+{"t": 38.436, "stage": "render", "action": "write_html", "result": "ok", "bytes": 78687, "self_contained": true}
+{"t": 38.436, "stage": "end", "action": "summary", "result": "success", "validation_ok": true, "revisions": 0, "requests": 1, "prompt_tokens": 1511, "completion_tokens": 1997, "total_tokens": 3508, "elapsed_s": 38.53}

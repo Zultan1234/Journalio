@@ -5,13 +5,21 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>__TITLE__</title>
 <style>
-:root{--bg:#f7f7f4;--card:#fff;--fg:#1d1f24;--muted:#626875;--line:#dcdde0;--acc:#2f62c9;--accbg:#e9f0fd;
---s1:#2f6fd6;--s2:#e07b28;--s3:#2a9d6f;--s4:#b3449a;--s5:#7a6a2b;
---paper:#1f5fbf;--derived:#7a3fb5;--toy:#b8650b;--ok:#1e8a4c;--bad:#c23b2e;--hot:#ffd84d}
-@media (prefers-color-scheme:dark){:root{--bg:#15171b;--card:#1e2127;--fg:#e8e9ec;--muted:#a1a6b0;--line:#363a42;--acc:#7aa5ff;--accbg:#22304a;
---s1:#6ea0ff;--s2:#f3a35c;--s3:#56c799;--s4:#e07ccc;--s5:#cdb866;--paper:#7aa8ff;--derived:#c39af0;--toy:#f2a957;--ok:#4fd08a;--bad:#ff7b6e;--hot:#8a6d00}}
+:root{--h:__HUE__;--bg:hsl(var(--h) 25% 97.5%);--card:#fff;--fg:hsl(var(--h) 15% 13%);--muted:hsl(var(--h) 8% 42%);--line:hsl(var(--h) 12% 86%);
+--acc:hsl(var(--h) 62% 40%);--accbg:hsl(var(--h) 70% 95%);--band:hsl(var(--h) 55% 93%);
+--s1:hsl(var(--h) 64% 46%);--s2:hsl(calc(var(--h) + 150) 62% 46%);--s3:hsl(calc(var(--h) + 60) 55% 40%);--s4:hsl(calc(var(--h) + 270) 50% 52%);--s5:hsl(calc(var(--h) + 30) 60% 42%);
+--paper:#1f5fbf;--derived:#7a3fb5;--toy:#b8650b;--ok:#1e8a4c;--bad:#c23b2e;--hot:hsl(calc(var(--h) + 180) 95% 80%);
+--font:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;--hfont:var(--font)}
+@media (prefers-color-scheme:dark){:root{--bg:hsl(var(--h) 18% 9%);--card:hsl(var(--h) 14% 13%);--fg:hsl(var(--h) 10% 91%);--muted:hsl(var(--h) 8% 65%);--line:hsl(var(--h) 10% 25%);
+--acc:hsl(var(--h) 85% 72%);--accbg:hsl(var(--h) 35% 20%);--band:hsl(var(--h) 30% 16%);
+--s1:hsl(var(--h) 80% 66%);--s2:hsl(calc(var(--h) + 150) 70% 62%);--s3:hsl(calc(var(--h) + 60) 60% 60%);--s4:hsl(calc(var(--h) + 270) 65% 70%);--s5:hsl(calc(var(--h) + 30) 70% 62%);
+--paper:#7aa8ff;--derived:#c39af0;--toy:#f2a957;--ok:#4fd08a;--bad:#ff7b6e;--hot:hsl(calc(var(--h) + 180) 60% 30%)}}
+body.classic{--font:"Iowan Old Style","Palatino Linotype",Palatino,"Book Antiqua",Georgia,serif;--hfont:var(--font)}
+body.technical{--hfont:ui-monospace,"Cascadia Code","SF Mono",Consolas,monospace}
 *{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.55 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.55 var(--font)}
+h1,h2,h3{font-family:var(--hfont)}
+body.technical h1{letter-spacing:-.02em}
 main{max-width:1180px;margin:0 auto;padding:20px 16px 60px}
 h1{font-size:1.75rem;line-height:1.2;margin:.2em 0}
 h2{font-size:1.2rem;margin:1.8em 0 .6em;padding-bottom:.25em;border-bottom:2px solid var(--line)}
@@ -22,6 +30,16 @@ code,.sym,.eqx,.sx,.ex{font-family:"Cambria Math","STIX Two Math","Latin Modern 
 code{background:var(--accbg);padding:0 .3em;border-radius:4px}
 .muted{color:var(--muted)}
 .sub{color:var(--muted);margin:.2em 0 .4em;font-size:1.05rem}
+.hero{display:grid;grid-template-columns:1fr 230px;gap:18px;align-items:center;background:var(--band);border-radius:14px;padding:16px 20px;margin-bottom:6px}
+@media (max-width:640px){.hero{grid-template-columns:1fr}.hero .motif{max-width:200px;justify-self:center}}
+.motif{width:100%;height:auto;display:block}
+.motif .f{fill:var(--acc)}.motif .f2{fill:var(--s2)}.motif .fl{fill:var(--card);stroke:var(--line)}
+.motif .a{stroke:var(--acc)}.motif .a2{stroke:var(--s2)}.motif .m{stroke:var(--muted);stroke-width:1.2;opacity:.6}.motif .l{stroke:var(--line);stroke-width:2}
+.motif .tx{font:700 14px monospace;fill:#fff;text-anchor:middle}.motif .tx0{font:700 14px monospace;fill:var(--acc);text-anchor:middle}
+#figs{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px;margin-top:14px}
+#figs:empty{display:none}
+.pfig{margin:0}.pfig img{max-width:100%;max-height:340px;display:block;margin:0 auto;background:#fff;border-radius:6px}
+.pfig figcaption{font-size:.85rem;color:var(--muted);margin-top:6px}
 .cite{font-size:.88rem;color:var(--muted)}
 .card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px 16px}
 .grid4{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-top:14px}
@@ -139,12 +157,17 @@ details summary{cursor:pointer;color:var(--acc);font-weight:600}
 footer{margin-top:40px;font-size:.8rem;color:var(--muted)}
 </style>
 </head>
-<body>
+<body class="__STYLE__">
 <main>
 <header>
+ <div class="hero">
+  <div>
   <h1 id="title"></h1>
   <div class="sub" id="subtitle"></div>
   <div class="cite" id="cite"></div>
+  </div>
+  __MOTIF__
+ </div>
   <div class="legendtags" style="margin-top:6px">Labels used on this page:
     <span class="tag tag-paper">PAPER</span> stated in the source excerpt ·
     <span class="tag tag-derived">DERIVED</span> follows mathematically from it ·
@@ -152,6 +175,7 @@ footer{margin-top:40px;font-size:.8rem;color:var(--muted)}
 </header>
 
 <section class="grid4" id="intro" aria-label="Orientation"></section>
+<section id="figs" aria-label="Figures from the paper"></section>
 <div id="first"></div>
 
 <h2>1 · The mechanism, step by step</h2>

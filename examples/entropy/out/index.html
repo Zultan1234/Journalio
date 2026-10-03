@@ -3,15 +3,23 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Choice, Uncertainty and Entropy</title>
+<title>Shannon Entropy: Uncertainty in Bits</title>
 <style>
-:root{--bg:#f7f7f4;--card:#fff;--fg:#1d1f24;--muted:#626875;--line:#dcdde0;--acc:#2f62c9;--accbg:#e9f0fd;
---s1:#2f6fd6;--s2:#e07b28;--s3:#2a9d6f;--s4:#b3449a;--s5:#7a6a2b;
---paper:#1f5fbf;--derived:#7a3fb5;--toy:#b8650b;--ok:#1e8a4c;--bad:#c23b2e;--hot:#ffd84d}
-@media (prefers-color-scheme:dark){:root{--bg:#15171b;--card:#1e2127;--fg:#e8e9ec;--muted:#a1a6b0;--line:#363a42;--acc:#7aa5ff;--accbg:#22304a;
---s1:#6ea0ff;--s2:#f3a35c;--s3:#56c799;--s4:#e07ccc;--s5:#cdb866;--paper:#7aa8ff;--derived:#c39af0;--toy:#f2a957;--ok:#4fd08a;--bad:#ff7b6e;--hot:#8a6d00}}
+:root{--h:210;--bg:hsl(var(--h) 25% 97.5%);--card:#fff;--fg:hsl(var(--h) 15% 13%);--muted:hsl(var(--h) 8% 42%);--line:hsl(var(--h) 12% 86%);
+--acc:hsl(var(--h) 62% 40%);--accbg:hsl(var(--h) 70% 95%);--band:hsl(var(--h) 55% 93%);
+--s1:hsl(var(--h) 64% 46%);--s2:hsl(calc(var(--h) + 150) 62% 46%);--s3:hsl(calc(var(--h) + 60) 55% 40%);--s4:hsl(calc(var(--h) + 270) 50% 52%);--s5:hsl(calc(var(--h) + 30) 60% 42%);
+--paper:#1f5fbf;--derived:#7a3fb5;--toy:#b8650b;--ok:#1e8a4c;--bad:#c23b2e;--hot:hsl(calc(var(--h) + 180) 95% 80%);
+--font:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;--hfont:var(--font)}
+@media (prefers-color-scheme:dark){:root{--bg:hsl(var(--h) 18% 9%);--card:hsl(var(--h) 14% 13%);--fg:hsl(var(--h) 10% 91%);--muted:hsl(var(--h) 8% 65%);--line:hsl(var(--h) 10% 25%);
+--acc:hsl(var(--h) 85% 72%);--accbg:hsl(var(--h) 35% 20%);--band:hsl(var(--h) 30% 16%);
+--s1:hsl(var(--h) 80% 66%);--s2:hsl(calc(var(--h) + 150) 70% 62%);--s3:hsl(calc(var(--h) + 60) 60% 60%);--s4:hsl(calc(var(--h) + 270) 65% 70%);--s5:hsl(calc(var(--h) + 30) 70% 62%);
+--paper:#7aa8ff;--derived:#c39af0;--toy:#f2a957;--ok:#4fd08a;--bad:#ff7b6e;--hot:hsl(calc(var(--h) + 180) 60% 30%)}}
+body.classic{--font:"Iowan Old Style","Palatino Linotype",Palatino,"Book Antiqua",Georgia,serif;--hfont:var(--font)}
+body.technical{--hfont:ui-monospace,"Cascadia Code","SF Mono",Consolas,monospace}
 *{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.55 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.55 var(--font)}
+h1,h2,h3{font-family:var(--hfont)}
+body.technical h1{letter-spacing:-.02em}
 main{max-width:1180px;margin:0 auto;padding:20px 16px 60px}
 h1{font-size:1.75rem;line-height:1.2;margin:.2em 0}
 h2{font-size:1.2rem;margin:1.8em 0 .6em;padding-bottom:.25em;border-bottom:2px solid var(--line)}
@@ -22,6 +30,16 @@ code,.sym,.eqx,.sx,.ex{font-family:"Cambria Math","STIX Two Math","Latin Modern 
 code{background:var(--accbg);padding:0 .3em;border-radius:4px}
 .muted{color:var(--muted)}
 .sub{color:var(--muted);margin:.2em 0 .4em;font-size:1.05rem}
+.hero{display:grid;grid-template-columns:1fr 230px;gap:18px;align-items:center;background:var(--band);border-radius:14px;padding:16px 20px;margin-bottom:6px}
+@media (max-width:640px){.hero{grid-template-columns:1fr}.hero .motif{max-width:200px;justify-self:center}}
+.motif{width:100%;height:auto;display:block}
+.motif .f{fill:var(--acc)}.motif .f2{fill:var(--s2)}.motif .fl{fill:var(--card);stroke:var(--line)}
+.motif .a{stroke:var(--acc)}.motif .a2{stroke:var(--s2)}.motif .m{stroke:var(--muted);stroke-width:1.2;opacity:.6}.motif .l{stroke:var(--line);stroke-width:2}
+.motif .tx{font:700 14px monospace;fill:#fff;text-anchor:middle}.motif .tx0{font:700 14px monospace;fill:var(--acc);text-anchor:middle}
+#figs{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px;margin-top:14px}
+#figs:empty{display:none}
+.pfig{margin:0}.pfig img{max-width:100%;max-height:340px;display:block;margin:0 auto;background:#fff;border-radius:6px}
+.pfig figcaption{font-size:.85rem;color:var(--muted);margin-top:6px}
 .cite{font-size:.88rem;color:var(--muted)}
 .card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px 16px}
 .grid4{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-top:14px}
@@ -139,12 +157,17 @@ details summary{cursor:pointer;color:var(--acc);font-weight:600}
 footer{margin-top:40px;font-size:.8rem;color:var(--muted)}
 </style>
 </head>
-<body>
+<body class="classic">
 <main>
 <header>
+ <div class="hero">
+  <div>
   <h1 id="title"></h1>
   <div class="sub" id="subtitle"></div>
   <div class="cite" id="cite"></div>
+  </div>
+  <svg class="motif" viewBox="0 0 240 140" role="img" aria-label="decorative distribution illustration"><defs><marker id="mh" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0L10,5L0,10z" fill="var(--acc)"/></marker><marker id="mh2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0L10,5L0,10z" fill="var(--s2)"/></marker></defs><line x1="14" y1="121" x2="228" y2="121" class="l"/><rect x="22" y="118.6" width="17" height="1.4" rx="2" class="f" fill-opacity=".75"/><rect x="42" y="112.4" width="17" height="7.6" rx="2" class="f" fill-opacity=".75"/><rect x="62" y="93.9" width="17" height="26.1" rx="2" class="f" fill-opacity=".75"/><rect x="82" y="60.3" width="17" height="59.7" rx="2" class="f" fill-opacity=".75"/><rect x="102" y="29.8" width="17" height="90.2" rx="2" class="f" fill-opacity=".75"/><rect x="122" y="29.8" width="17" height="90.2" rx="2" class="f" fill-opacity=".75"/><rect x="142" y="60.3" width="17" height="59.7" rx="2" class="f" fill-opacity=".75"/><rect x="162" y="93.9" width="17" height="26.1" rx="2" class="f" fill-opacity=".75"/><rect x="182" y="112.4" width="17" height="7.6" rx="2" class="f" fill-opacity=".75"/><rect x="202" y="118.6" width="17" height="1.4" rx="2" class="f" fill-opacity=".75"/><polyline points="30,116.9 33,116 36,114.9 39,113.6 42,112 45,110.2 48,107.9 51,105.4 54,102.4 57,99 60,95.3 63,91.1 66,86.5 69,81.5 72,76.2 75,70.7 78,65 81,59.1 84,53.3 87,47.6 90,42.1 93,37 96,32.4 99,28.4 102,25 105,22.5 108,20.8 111,20.1 114,20.2 117,21.3 120,23.3 123,26.1 126,29.6 129,33.9 132,38.7 135,43.9 138,49.5 141,55.2 144,61.1 147,66.9 150,72.6 153,78 156,83.2 159,88.1 162,92.5 165,96.6 168,100.2 171,103.4 174,106.3 177,108.7 180,110.8 183,112.6 186,114.1 189,115.3 192,116.3 195,117.2 198,117.8 201,118.3 204,118.7 207,119.1 210,119.3 213,119.5" class="a2" stroke-width="3" fill="none"/></svg>
+ </div>
   <div class="legendtags" style="margin-top:6px">Labels used on this page:
     <span class="tag tag-paper">PAPER</span> stated in the source excerpt ·
     <span class="tag tag-derived">DERIVED</span> follows mathematically from it ·
@@ -152,6 +175,7 @@ footer{margin-top:40px;font-size:.8rem;color:var(--muted)}
 </header>
 
 <section class="grid4" id="intro" aria-label="Orientation"></section>
+<section id="figs" aria-label="Figures from the paper"></section>
 <div id="first"></div>
 
 <h2>1 · The mechanism, step by step</h2>
@@ -196,8 +220,8 @@ footer{margin-top:40px;font-size:.8rem;color:var(--muted)}
 </div>
 <footer>Generated by Journalio (Paper → Playground agent). All numbers on this page are computed live in your browser from the current inputs; the toy values are teaching examples, not experimental results from the paper. Works offline.</footer>
 </main>
-<script type="application/json" id="spec-data">{"title": "Choice, Uncertainty and Entropy", "subtitle": "Shannon's H = −Σ pᵢ log₂ pᵢ: certainty is 0 bits, four equally likely outcomes are 2 bits", "paper": {"title": "A Mathematical Theory of Communication", "authors": "C. E. Shannon", "year": 1948, "url": "https://people.math.harvard.edu/~ctm/home/text/others/shannon/entropy/entropy.pdf", "section": "Section 6 (Choice, Uncertainty and Entropy)"}, "intro": {"what": "A probability distribution over n possible events carries a measurable amount of choice or uncertainty, H = −Σ pᵢ log₂ pᵢ, in bits.", "why": "Each outcome contributes −pᵢ log₂ pᵢ bits: rare outcomes surprise a lot but happen rarely, so contributions trade off and are maximized when all outcomes are equally likely.", "change": "Move the probability sliders or the number of outcomes n; the bars show each outcome's contribution and the readout shows the total H.", "watch": "H hits 0 when one probability is 1, and reaches log₂ n when all n probabilities are equal."}, "scope": {"in": "Discrete entropy H = −Σ pᵢ log₂ pᵢ over n outcomes; individual contributions −pᵢ log₂ pᵢ; the cases of certainty (H = 0) and equal probabilities (H = log₂ n); zero probabilities treated as 0·log 0 = 0.", "out": "Continuous/relative entropy, joint and conditional entropy, channel capacity, coding theorems, and the uniqueness proof of Theorem 2."}, "symbols": [{"sym": "n", "meaning": "number of possible events (outcomes)", "tag": "PAPER"}, {"sym": "pᵢ", "meaning": "probability that event i occurs; Σpᵢ = 1", "tag": "PAPER"}, {"sym": "H", "meaning": "entropy: measure of choice/uncertainty, in bits", "tag": "PAPER"}, {"sym": "−pᵢ log₂ pᵢ", "meaning": "contribution of outcome i to H", "tag": "DERIVED"}, {"sym": "log₂ n", "meaning": "maximum entropy for n outcomes (all pᵢ = 1/n)", "tag": "PAPER"}, {"sym": "K", "meaning": "positive constant fixing the unit; K = 1/log 2 gives bits", "tag": "PAPER"}], "equations": [{"expr": "H = −K Σᵢ₌₁ⁿ pᵢ log pᵢ", "ref": "Section 6, Theorem 2", "tag": "PAPER", "note": "K is a positive constant; choosing K = 1/log 2 measures H in bits."}, {"expr": "H = −Σᵢ₌₁ⁿ pᵢ log₂ pᵢ", "ref": "Section 6", "tag": "PAPER", "note": "With K = 1/log 2, H is in bits."}, {"expr": "H = 0 ⟺ all pᵢ but one are zero, that one being 1", "ref": "Section 6, property 1", "tag": "PAPER"}, {"expr": "H ≤ log₂ n, with equality iff pᵢ = 1/n for all i", "ref": "Section 6, property 2", "tag": "PAPER"}, {"expr": "contributionᵢ = −pᵢ log₂ pᵢ, with 0·log₂0 ≡ 0", "ref": "derived from H", "tag": "DERIVED"}], "stages": [{"id": "s1", "label": "1. Choose the distribution", "expr": "p₁ … pₙ,  n", "desc": "Set the number of outcomes and the raw weights; they are normalized to probabilities.", "keys": ["p", "n"]}, {"id": "s2", "label": "2. Per-outcome contribution", "expr": "cᵢ = −pᵢ log₂ pᵢ", "desc": "Each outcome's share of the uncertainty; pᵢ = 0 contributes exactly 0.", "keys": ["c"]}, {"id": "s3", "label": "3. Sum the contributions", "expr": "H = Σᵢ cᵢ", "desc": "The parts stack end to end into the total entropy.", "keys": ["c", "H"]}, {"id": "s4", "label": "4. Compare with the maximum", "expr": "H vs log₂ n", "desc": "The gap to log₂ n measures how far the distribution is from uniform.", "keys": ["H", "Hmax", "gap"]}, {"id": "s5", "label": "5. Sweep one probability", "expr": "H(p) with the rest renormalized", "desc": "Shows where the current distribution sits on the H-vs-p curve.", "keys": ["sweep_p", "sweep_H"]}], "controls": [{"id": "n", "type": "slider", "label": "Number of outcomes n", "desc": "How many possible events there are.", "min": 2, "max": 6, "step": 1, "default": 4, "unit": "events", "effect": "Changes the length of the weight vector and the maximum possible entropy log₂ n."}, {"id": "w", "type": "vector", "label": "Raw weights wᵢ", "desc": "Unnormalized weights; they are normalized to pᵢ = wᵢ/Σwⱼ inside the model.", "min": 0, "max": 10, "step": 0.1, "default": [1, 1, 1, 1], "length_from": "n", "fill": 1, "labels": ["w₁", "w₂", "w₃", "w₄", "w₅", "w₆"], "effect": "Reshapes the distribution, moving each contribution cᵢ and the total H."}, {"id": "p1", "type": "slider", "label": "p₁ for the sweep", "desc": "Value of p₁ used in the H-vs-p₁ curve; the remaining probability is split equally among the other n−1 outcomes.", "min": 0, "max": 1, "step": 0.01, "default": 0.25, "effect": "Moves the marked operating point along the H-vs-p₁ curve; does not change the bars."}], "compute": "var n = Math.round(inp.n);\nvar w = inp.w.slice(0, n);\nvar names = [];\nvar i;\nfor (i = 0; i < n; i++) names.push('x' + (i + 1));\nvar sum = 0;\nfor (i = 0; i < n; i++) { var wi = w[i]; if (!(wi > 0)) wi = 0; sum += wi; }\nvar p = [];\nif (sum > 0) { for (i = 0; i < n; i++) p.push((w[i] > 0 ? w[i] : 0) / sum); }\nelse { for (i = 0; i < n; i++) p.push(1 / n); }\nvar c = [];\nvar H = 0;\nfor (i = 0; i < n; i++) {\n  var pi = p[i];\n  var ci = (pi > 0) ? -pi * Math.log(pi) / Math.LN2 : 0;\n  c.push(ci);\n  H += ci;\n}\nvar Hmax = Math.log(n) / Math.LN2;\nvar gap = Hmax - H;\nvar p1 = inp.p1;\nif (!(p1 >= 0)) p1 = 0;\nif (p1 > 1) p1 = 1;\nvar rest = (n > 1) ? (1 - p1) / (n - 1) : 0;\nvar sweep_p = [];\nvar sweep_H = [];\nvar k;\nfor (k = 0; k <= 100; k++) {\n  var x = k / 100;\n  var r = (n > 1) ? (1 - x) / (n - 1) : 0;\n  var h = 0;\n  if (x > 0) h += -x * Math.log(x) / Math.LN2;\n  if (r > 0) h += (n - 1) * (-r * Math.log(r) / Math.LN2);\n  sweep_p.push(x);\n  sweep_H.push(h);\n}\nvar H_at_p1 = 0;\nif (p1 > 0) H_at_p1 += -p1 * Math.log(p1) / Math.LN2;\nif (rest > 0) H_at_p1 += (n - 1) * (-rest * Math.log(rest) / Math.LN2);\nvar uniform = true;\nfor (i = 0; i < n; i++) { if (Math.abs(p[i] - 1 / n) > 1e-9) uniform = false; }\nvar certain = false;\nfor (i = 0; i < n; i++) { if (p[i] > 1 - 1e-9) certain = true; }\nreturn { n: n, p: p, c: c, H: H, Hmax: Hmax, gap: gap, names: names, sweep_p: sweep_p, sweep_H: sweep_H, H_at_p1: H_at_p1, p1: p1, uniform: uniform ? 1 : 0, certain: certain ? 1 : 0 };", "readouts": [{"key": "H", "label": "Entropy H", "digits": 4, "unit": "bits"}, {"key": "Hmax", "label": "Maximum log₂ n", "digits": 4, "unit": "bits"}, {"key": "gap", "label": "Gap to maximum", "digits": 4, "unit": "bits"}, {"key": "n", "label": "Outcomes n", "digits": 0, "unit": ""}], "views": [{"type": "bars", "title": "Probabilities pᵢ", "key": "p", "labels": "names", "ymin": 0, "ymax": 1, "xlabel": "outcome", "ylabel": "probability", "digits": 3, "stage": "s1", "caption": "Watch the distribution: one bar at 1 means certainty; all bars equal means maximum uncertainty.", "id": "v1"}, {"type": "bars", "title": "Contributions −pᵢ log₂ pᵢ", "key": "c", "labels": "names", "ymin": 0, "ref_line": 0, "xlabel": "outcome", "ylabel": "bits", "digits": 3, "stage": "s2", "caption": "Each bar is that outcome's share of H; a zero-probability outcome contributes exactly 0 bits.", "id": "v2"}, {"type": "stacked", "title": "Contributions stack into H", "key": "c", "labels": "names", "total_label": "H", "unit": "bits", "max_key": "Hmax", "max_label": "log₂ n", "digits": 3, "stage": "s3", "caption": "The parts laid end to end sum to H; the marker shows the ceiling log₂ n.", "id": "v3"}, {"type": "line", "title": "H vs p₁ (others equal)", "x": "sweep_p", "series": [{"key": "sweep_H", "label": "H(p₁)"}], "points": [{"x": "p1", "y": "H_at_p1", "label": "current p₁"}], "hlines": [{"key": "Hmax", "label": "log₂ n"}], "xlabel": "p₁", "ylabel": "H (bits)", "ymin": 0, "stage": "s5", "caption": "The curve peaks at p₁ = 1/n with height log₂ n and falls to 0 at p₁ = 0 and p₁ = 1.", "id": "v4"}, {"id": "auto_sweep", "type": "sweep", "control": "n", "title": "Entropy H as Number of outcomes n varies", "y": [{"key": "H", "label": "Entropy H"}, {"key": "Hmax", "label": "Maximum log₂ n"}], "ylabel": "bits", "caption": "Computed by re-running the model across the whole range of Number of outcomes n with every other input fixed; the dot marks the current setting.", "stage": "s4"}], "first_action": {"try": "Start with n = 4 and all weights equal to 1 (the default).", "watch": "The readout H shows 2.0000 bits, equal to log₂ 4, and the four contribution bars are equal.", "why": "With pᵢ = 1/4 each, H = −4·(1/4)log₂(1/4) = log₂ 4 = 2 bits, Shannon's maximum for n = 4.", "preset": {"n": 4, "w": [1, 1, 1, 1], "p1": 0.25}}, "explorations": [{"title": "Certainty gives zero bits", "change": "Set n = 4 and weights w = [1, 0, 0, 0] (or drag w₁ up and the others to 0).", "observe": "p becomes [1,0,0,0]; the contribution bars are all 0 and H reads 0.0000 bits, while log₂ n still reads 2.0000.", "why": "Shannon's property 1: H = 0 if and only if all pᵢ but one are zero, that one being 1 — only certainty makes H vanish.", "preset": {"n": 4, "w": [1, 0, 0, 0], "p1": 0.25}}, {"title": "More equally likely outcomes, more bits", "change": "Keep all weights equal to 1 and raise n from 2 to 6, watching H and log₂ n.", "observe": "H tracks log₂ n exactly: 1 bit at n = 2, 2 bits at n = 4, about 2.585 bits at n = 6; the gap stays 0.", "why": "Shannon's property 2: for a given n, H is maximum and equal to log n when all pᵢ = 1/n, and that maximum increases monotonically with n.", "preset": {"n": 6, "w": [1, 1, 1, 1, 1, 1], "p1": 0.1667}}], "limitation": {"kind": "misconception", "title": "\"A zero-probability outcome still adds uncertainty\"", "claim": "Learners often expect an outcome with pᵢ = 0 to contribute something (or to make H undefined) because log 0 is −∞.", "try": "Set n = 4 and weights w = [1, 1, 0, 0], then compare with w = [1, 1, 0.0001, 0].", "observe": "With w = [1,1,0,0] the two zero bars contribute exactly 0.000 bits and H = 1.0000 bit, the same as a two-outcome fair coin; the tiny weight 0.0001 changes H only in the fourth decimal.", "explain": "The convention 0·log₂0 ≡ 0 is the limit limp→0⁺ −p log₂ p = 0: an impossible event carries no choice, so it neither adds bits nor breaks the formula.", "preset": {"n": 4, "w": [1, 1, 0, 0], "p1": 0.5}}, "claims": [{"text": "H = −K Σ pᵢ log pᵢ is the only measure satisfying continuity, monotonicity in n for equal probabilities, and the decomposition property (Theorem 2); K is a positive constant fixing the unit.", "tag": "PAPER", "ref": "Section 6, Theorem 2"}, {"text": "H = 0 if and only if all the pᵢ but one are zero, that one having the value unity; otherwise H is positive.", "tag": "PAPER", "ref": "Section 6, property 1"}, {"text": "For a given n, H is maximum and equal to log n when all pᵢ are equal to 1/n.", "tag": "PAPER", "ref": "Section 6, property 2"}, {"text": "With K = 1/log 2 the entropy is measured in bits, so H = log₂ n for n equally likely outcomes.", "tag": "DERIVED", "ref": "Section 6 (choice of unit)"}, {"text": "The total H is exactly the sum of the per-outcome contributions cᵢ = −pᵢ log₂ pᵢ, which is what the stacked view shows.", "tag": "DERIVED", "ref": "Section 6"}, {"text": "The lab normalizes raw weights wᵢ to pᵢ = wᵢ/Σwⱼ and uses the convention 0·log₂0 = 0; if all weights are zero it falls back to the uniform distribution.", "tag": "PLAYGROUND", "ref": "teaching simplification"}], "checks": [{"name": "probabilities sum to 1", "expr": "Math.abs(out.p.reduce(function(a,b){return a+b;},0) - 1) < 1e-9", "why": "pᵢ must be a probability distribution."}, {"name": "H equals sum of contributions", "expr": "Math.abs(out.H - out.c.reduce(function(a,b){return a+b;},0)) < 1e-9", "why": "H is defined as Σ cᵢ."}, {"name": "H within [0, log2 n]", "expr": "out.H >= -1e-12 && out.H <= out.Hmax + 1e-9", "why": "Shannon's properties 1 and 2 bound H."}, {"name": "certainty implies zero entropy", "expr": "!(out.certain === 1) || Math.abs(out.H) < 1e-9", "why": "H = 0 iff one pᵢ = 1."}, {"name": "uniform implies H = log2 n", "expr": "!(out.uniform === 1) || Math.abs(out.H - out.Hmax) < 1e-9", "why": "Equal probabilities maximize H at log₂ n."}, {"name": "zero-probability outcomes contribute nothing", "expr": "out.p.every(function(pi,i){ return pi > 0 || out.c[i] === 0; })", "why": "0·log₂0 is taken as 0."}]}</script>
-<script type="application/json" id="build-data">{"validation": {"ok": true, "errors": [], "states": 66, "checks": ["probabilities sum to 1", "H equals sum of contributions", "H within [0, log2 n]", "certainty implies zero entropy", "uniform implies H = log2 n", "zero-probability outcomes contribute nothing"], "engine": "mini-racer(V8)"}, "revisions": 1, "model": "deepseek/deepseek-v4.1-flash"}</script>
+<script type="application/json" id="spec-data">{"title": "Shannon Entropy: Uncertainty in Bits", "paper": {"title": "A Mathematical Theory of Communication", "authors": "Claude E. Shannon", "year": 1948, "section": "Section 6, Theorem 2", "url": "https://people.math.harvard.edu/~ctm/home/text/others/shannon/entropy/entropy.pdf"}, "theme": {"hue": 210, "motif": "distribution", "style": "classic"}, "symbols": [{"sym": "pᵢ", "meaning": "probability of outcome i", "tag": "PAPER"}, {"sym": "n", "meaning": "number of possible outcomes", "tag": "PAPER"}, {"sym": "H", "meaning": "entropy (uncertainty) in bits", "tag": "PAPER"}, {"sym": "-log₂ pᵢ", "meaning": "surprise of outcome i", "tag": "DERIVED"}, {"sym": "pᵢ log₂ pᵢ", "meaning": "contribution of outcome i", "tag": "DERIVED"}], "equations": [{"expr": "H = -Σᵢ pᵢ log₂ pᵢ", "ref": "Theorem 2", "tag": "PAPER"}, {"expr": "H = log₂ n  when all pᵢ = 1/n", "ref": "property 2", "tag": "PAPER"}, {"expr": "H = 0  iff one pᵢ = 1", "ref": "property 1", "tag": "PAPER"}], "stages": [{"id": "in", "label": "probabilities", "expr": "p = [p₁…pₙ]", "keys": ["p"]}, {"id": "contrib", "label": "per-outcome terms", "expr": "-pᵢ log₂ pᵢ", "keys": ["contrib"]}, {"id": "sum", "label": "total entropy", "expr": "H = Σ contribᵢ", "keys": ["H"]}], "controls": [{"id": "n", "type": "slider", "label": "number of outcomes n", "min": 1, "max": 8, "step": 1, "default": 4, "effect": "how many outcomes share the probability mass"}, {"id": "p1", "type": "slider", "label": "weight of outcome 1", "min": 0, "max": 1, "step": 0.01, "default": 0.25, "effect": "shifts mass between outcome 1 and the rest"}], "compute": "const n=Math.max(1,Math.round(inp.n));\nlet w=[];\nfor(let i=0;i<n;i++){w.push(i===0?inp.p1:(1-inp.p1)/(n-1||1));}\nif(inp.equal){w=Array(n).fill(1/n);}\nlet s=w.reduce((a,b)=>a+b,0);\nif(!(s>0)){w=Array(n).fill(1/n);s=1;}\nconst p=w.map(x=>x/s);\nconst contrib=p.map(x=>x>0?-x*Math.log2(x):0);\nconst H=contrib.reduce((a,b)=>a+b,0);\nconst labels=p.map((_,i)=>'p'+(i+1));\nconst maxH=Math.log2(n);\nconst sweepN=[],sweepH=[];\nfor(let k=1;k<=8;k++){sweepN.push(k);sweepH.push(Math.log2(k));}\nreturn {p,contrib,H,labels,maxH,sweepN,sweepH};", "readouts": [{"key": "H", "label": "entropy H", "unit": "bits"}, {"key": "maxH", "label": "maximum log₂ n", "unit": "bits"}, {"key": "H", "label": "gap to max", "unit": "bits"}], "views": [{"type": "bars", "title": "Probability distribution", "key": "p", "labels": "labels", "ymin": 0, "ymax": 1, "stage": "in", "caption": "How the mass is spread over outcomes", "id": "v1"}, {"type": "bars", "title": "Per-outcome contribution -pᵢ log₂ pᵢ", "key": "contrib", "labels": "labels", "ymin": 0, "ymax": 1, "stage": "contrib", "caption": "Rare outcomes contribute little; mid ones most", "id": "v2"}, {"id": "auto_sweep", "type": "sweep", "control": "n", "title": "entropy H as number of outcomes n varies", "y": [{"key": "H", "label": "entropy H"}, {"key": "maxH", "label": "maximum log₂ n"}], "ylabel": "bits", "caption": "Computed by re-running the model across the whole range of number of outcomes n with every other input fixed; the dot marks the current setting.", "stage": "sum"}], "claims": [{"text": "H = -K Σ pᵢ log pᵢ is the only measure satisfying continuity, monotonicity in n, and the grouping property.", "tag": "PAPER", "ref": "Theorem 2"}, {"text": "H = 0 if and only if all pᵢ but one are zero, that one being unity.", "tag": "PAPER", "ref": "property 1"}, {"text": "For given n, H is maximized at log n when all pᵢ = 1/n.", "tag": "PAPER", "ref": "property 2"}, {"text": "Here K = 1/log 2, so H is reported in bits and log₂ n is the maximum.", "tag": "DERIVED", "ref": "Theorem 2"}, {"text": "We use a two-parameter family (p1 plus uniform rest) rather than arbitrary distributions.", "tag": "PLAYGROUND", "ref": ""}], "checks": [{"name": "certainty_zero", "expr": "!(inp.equal)&&inp.p1>=0.999?Math.abs(out.H)<1e-9:true"}, {"name": "uniform_four", "expr": "!(inp.equal)||Math.round(inp.n)!==4||Math.abs(out.H-2)<1e-9"}, {"name": "never_exceeds_max", "expr": "out.H<=out.maxH+1e-9"}, {"name": "nonnegative", "expr": "out.H>=-1e-9"}], "scope": {"out": "Continuous entropy, channel capacity, coding theorems, and the grouping-axiom proof are omitted."}, "intro": {"what": "Entropy H = -Σ pᵢ log₂ pᵢ measures how much choice or uncertainty a known probability distribution carries, in bits.", "why": "It sets the fundamental limit on how many bits are needed to encode outcomes of a random source."}, "first_action": {"try": "Set n = 4 and turn on 'force equal probabilities'.", "watch": "Watch each bar: all four are 0.25, each contributing 0.5 bits.", "why": "The readout H reads 2.00 bits — exactly log₂ 4.", "preset": {}}, "explorations": [{"title": "Certainty", "change": "Set n = 4, p1 = 1 (equal off).", "observe": "One bar is 1, the rest 0; H drops to 0.00 bits.", "why": "With one outcome certain, there is no choice left, so Shannon's property 1 forces H = 0.", "preset": {}}, {"title": "Skewed vs equal", "change": "Set n = 8, p1 = 0.9 (equal off), then toggle equal on.", "observe": "H is far below 3 bits when skewed, hits 3.00 bits when equal.", "why": "For fixed n the uniform distribution is the most uncertain; any skew lowers H below log₂ n.", "preset": {}}], "limitation": {"kind": "misconception", "title": "Zero-probability outcomes still count", "claim": "An outcome with pᵢ = 0 adds -0·log₂0 = 0 to H, not -∞.", "try": "Set n = 4, p1 = 1 so three outcomes have p = 0.", "observe": "H = 0.00 bits; the zero bars contribute nothing.", "explain": "The limit p log₂ p → 0 as p → 0⁺ keeps H finite; impossible outcomes carry no uncertainty.", "preset": {}}}</script>
+<script type="application/json" id="build-data">{"validation": {"ok": true, "errors": [], "states": 35, "checks": ["certainty_zero", "uniform_four", "never_exceeds_max", "nonnegative"], "engine": "mini-racer(V8)"}, "revisions": 0, "model": "deepseek/deepseek-v4.1-flash", "figures": []}</script>
 <script>/* Journalio core: shared by the browser runtime AND the build-time validator.
    Pure functions only (no DOM). */
 var JCore = (function () {
@@ -460,10 +484,33 @@ var JCore = (function () {
     return l.map(String);
   }
   var SVGNS = "http://www.w3.org/2000/svg";
+  var SUB = { "0": "₀", "1": "₁", "2": "₂", "3": "₃", "4": "₄", "5": "₅", "6": "₆", "7": "₇", "8": "₈", "9": "₉", "+": "₊", "-": "₋", "=": "₌", "(": "₍", ")": "₎", a: "ₐ", e: "ₑ", h: "ₕ", i: "ᵢ", j: "ⱼ", k: "ₖ", l: "ₗ", m: "ₘ", n: "ₙ", o: "ₒ", p: "ₚ", r: "ᵣ", s: "ₛ", t: "ₜ", u: "ᵤ", v: "ᵥ", x: "ₓ" };
+  var SUP = { "0": "⁰", "1": "¹", "2": "²", "3": "³", "4": "⁴", "5": "⁵", "6": "⁶", "7": "⁷", "8": "⁸", "9": "⁹", "+": "⁺", "-": "⁻", "=": "⁼", "(": "⁽", ")": "⁾", n: "ⁿ", i: "ⁱ", T: "ᵀ", k: "ᵏ", x: "ˣ" };
+  function mapChars(t, m, pre) { var all = t.split("").every(function (ch) { return m[ch]; }); return all ? t.split("").map(function (ch) { return m[ch]; }).join("") : pre + t; }
+  /* SVG text cannot render HTML: turn <sub>/<sup> into Unicode, strip other tags, decode entities */
+  function plain(x) {
+    var t = String(x === undefined || x === null ? "" : x);
+    t = t.replace(/<sub>(.*?)<\/sub>/g, function (_, a) { return mapChars(a, SUB, "_"); })
+         .replace(/<sup>(.*?)<\/sup>/g, function (_, a) { return mapChars(a, SUP, "^"); })
+         .replace(/<[^>]+>/g, "");
+    var d = document.createElement("textarea"); d.innerHTML = t; return d.value;
+  }
   function svg(tagName, attrs, text) {
     var e = document.createElementNS(SVGNS, tagName);
     Object.keys(attrs || {}).forEach(function (k) { e.setAttribute(k, attrs[k]); });
-    if (text !== undefined) e.textContent = text;
+    if (text !== undefined) {
+      var t = String(text);
+      if (/<su[bp]>/.test(t)) { // real sub/superscripts via tspans
+        t.split(/(<su[bp]>.*?<\/su[bp]>)/).forEach(function (seg) {
+          if (!seg) return;
+          var m = seg.match(/^<(su[bp])>(.*?)<\/su[bp]>$/);
+          var ts = document.createElementNS(SVGNS, "tspan");
+          if (m) { ts.setAttribute("baseline-shift", m[1] === "sub" ? "sub" : "super"); ts.setAttribute("font-size", "75%"); ts.textContent = plain(m[2]); }
+          else ts.textContent = plain(seg);
+          e.appendChild(ts);
+        });
+      } else e.textContent = plain(t);
+    }
     return e;
   }
   function niceRange(lo, hi) {
@@ -486,7 +533,23 @@ var JCore = (function () {
     $("cite").innerHTML = "Source: " + cite + (P.section ? " — <b>" + rich(P.section) + "</b>" : "") +
       (P.url ? ' — <a href="' + encodeURI(P.url) + '" target="_blank" rel="noopener">' + rich(P.url) + "</a>" : "");
 
-    var I = SPEC.intro || {};
+    var I = Object.assign({}, SPEC.intro || {});
+    // derived for free from the spec (the model does not spend tokens on these)
+    var strip = function (x) { return String(x || "").replace(/<(?!\/?(sub|sup)\b)[^>]+>/g, ""); };
+    if (!I.change) I.change = (SPEC.controls || []).map(function (c) { return "<b>" + strip(c.label || c.id) + "</b>"; }).join(" · ");
+    if (!I.watch) {
+      var w = (SPEC.readouts || []).slice(0, 2).map(function (r) { return strip(r.label || r.key); })
+        .concat((SPEC.views || []).slice(0, 2).map(function (v) { return strip(v.title); }));
+      I.watch = w.filter(Boolean).join(" · ") + (SPEC.stages && SPEC.stages.length ? ", and how each step of the mechanism map updates." : "");
+    }
+    (BUILD.figures || []).forEach(function (f) {
+      var fig = el("figure", { "class": "card pfig" });
+      var img = el("img", { alt: f.caption || f.label || "Figure from the paper", loading: "lazy" });
+      img.src = f.data;
+      fig.appendChild(img);
+      fig.appendChild(el("figcaption", { html: tag("PAPER") + " <b>" + rich(f.label || "Figure") + "</b> reproduced from the paper. " + rich(f.caption || "") }));
+      $("figs").appendChild(fig);
+    });
     [["what", "What is this?"], ["why", "Why does it matter?"], ["change", "What can I change?"], ["watch", "What should I watch?"]].forEach(function (p) {
       $("intro").appendChild(el("div", { "class": "card q" }, [el("h3", { text: p[1] }), el("p", { html: rich(I[p[0]]) })]));
     });
@@ -798,8 +861,11 @@ var JCore = (function () {
     (v.points || []).forEach(function (p) {
       var px = val(p.x), py = val(p.y);
       if (Array.isArray(px) && Array.isArray(py)) {
-        var labs = labelsFor(p.labels, px.length);
-        px.forEach(function (x, i) { pts.push({ x: Number(x), y: Number(py[i]), label: (p.label ? p.label + " " : "") + labs[i] }); });
+        var lk = p.labels !== undefined ? p.labels : (Array.isArray(val(p.label)) ? p.label : undefined);
+        var labs = labelsFor(lk, px.length);
+        if (lk === p.label) p = Object.assign({}, p, { label: "" });
+        var pl = p.label;
+        px.forEach(function (x, i) { pts.push({ x: Number(x), y: Number(py[i]), label: (pl ? pl + " " : "") + labs[i] }); });
       } else pts.push({ x: Number(px), y: Number(py), label: p.label });
     });
     var vl = (v.vlines || []).map(function (l) { return { v: Number(val(l.key)), label: l.label }; });
@@ -828,7 +894,7 @@ var JCore = (function () {
     for (var t = xr.lo; t <= xr.hi + 1e-9; t += xr.step) { if (t < xmin - 1e-9 || t > xmax + 1e-9) continue; s.appendChild(svg("text", { x: X(t), y: y0 + h + 16, "text-anchor": "middle", "class": "tick" }, fmt(t, 3))); }
     s.appendChild(svg("line", { x1: x0, x2: x0 + w, y1: y0 + h, y2: y0 + h, "class": "axis" }));
     hlines.forEach(function (l) { if (!isFinite(l.v)) return; s.appendChild(svg("line", { x1: x0, x2: x0 + w, y1: Y(l.v), y2: Y(l.v), "class": "refl" })); s.appendChild(svg("text", { x: x0 + w - 4, y: Y(l.v) - 4, "text-anchor": "end", "class": "rl" }, (l.label || "") + " " + fmt(l.v))); });
-    vlines.forEach(function (l) { if (!isFinite(l.v)) return; s.appendChild(svg("line", { x1: X(l.v), x2: X(l.v), y1: y0, y2: y0 + h, "class": "refl" })); s.appendChild(svg("text", { x: X(l.v) + 4, y: y0 + 12, "class": "rl" }, (l.label || "") + " " + fmt(l.v))); });
+    vlines.forEach(function (l) { if (!isFinite(l.v)) return; s.appendChild(svg("line", { x1: X(l.v), x2: X(l.v), y1: y0, y2: y0 + h, "class": "refl" })); s.appendChild(svg("text", { x: X(l.v) + 4, y: y0 + h - 6, "class": "rl" }, (l.label || "") + " = " + fmt(l.v))); });
     series.forEach(function (sr, si) {
       var d = "";
       for (var i = 0; i < Math.min(xs.length, sr.y.length); i++) { if (!isFinite(sr.y[i]) || !isFinite(xs[i])) { d += ""; continue; } d += (d ? "L" : "M") + X(xs[i]).toFixed(1) + "," + Y(sr.y[i]).toFixed(1); }

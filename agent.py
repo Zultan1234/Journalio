@@ -19,14 +19,17 @@ T_START = time.time()
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from journalio import prompts  # noqa: E402
 from journalio.llm import LLM, BudgetError, parse_json  # noqa: E402
+from journalio.figures import FigureFetcher  # noqa: E402
 from journalio.render import render  # noqa: E402
+from journalio.spec import expand  # noqa: E402
+from journalio import theme as themes  # noqa: E402
 from journalio.source import gather  # noqa: E402
 from journalio.trace import Trace  # noqa: E402
 from journalio.validate import validate  # noqa: E402
 
 MAX_REPAIRS = 2
-MAIN_MAX_TOKENS = 14000
-REPAIR_MAX_TOKENS = 7000
+MAIN_MAX_TOKENS = 9000
+REPAIR_MAX_TOKENS = 5000
 TAGS = {"PAPER": "PAPER", "DERIVED": "DERIVED", "PLAYGROUND": "PLAYGROUND", "TOY": "PLAYGROUND", "SOURCE": "PAPER"}
 
 
@@ -204,7 +207,7 @@ def enrich(spec, report, trace):
     c, moved = best
     unit = moved[0].get("unit")
     ys = [r for r in moved if r.get("unit") == unit][:2]
-    label = lambda x: str(x or "").replace("<sub>", "").replace("</sub>", "").replace("<sup>", "^").replace("</sup>", "")
+    label = lambda x: str(x or "")
     stage = None
     for st in spec.get("stages", []):
         if isinstance(st, dict) and ys[0]["key"] in (st.get("keys") or []):
@@ -219,6 +222,37 @@ def enrich(spec, report, trace):
     views.append(view)
     trace.log("enrich", "add_sweep_view", "added", control=c["id"], y=[r["key"] for r in ys])
     return view
+
+
+def triage(spec, report, trace):
+    """Free, deterministic handling of cosmetic problems so LLM repairs are spent only on real bugs."""
+    changed = []
+    eff = report.get("control_effect") or {}
+    deco = [k for k, v in eff.items() if not v]
+    if deco and sum(1 for v in eff.values() if v) >= 2:
+        spec["controls"] = [c for c in spec.get("controls", []) if c.get("id") not in deco]
+        for blk in [spec.get("first_action"), spec.get("limitation")] + list(spec.get("explorations") or []):
+            if isinstance(blk, dict) and isinstance(blk.get("preset"), dict):
+                for k in deco:
+                    blk["preset"].pop(k, None)
+        changed.append("removed decorative control(s) %s" % deco)
+    errs = report.get("errors", [])
+    views = spec.get("views", [])
+    bad = {e.split(" ")[1] for e in errs if e.startswith("view ")}
+    if bad and len(views) - len(bad) >= 2:
+        spec["views"] = [v for v in views if str(v.get("id")) not in bad]
+        changed.append("dropped faulty view(s) %s" % sorted(bad))
+    keys = set(report.get("default_out_keys") or [])
+    if keys and any(e.startswith("readout ") for e in errs):
+        spec["readouts"] = [r for r in spec.get("readouts", []) if str(r.get("key", "")).split(".")[0] in keys]
+        changed.append("dropped readouts with missing keys")
+    if keys and any(e.startswith("stage ") for e in errs):
+        for st in spec.get("stages", []):
+            st["keys"] = [k for k in st.get("keys", []) if str(k).split(".")[0] in keys]
+        changed.append("stripped stage keys not returned by compute")
+    if changed:
+        trace.log("triage", "free_fixes", "%d fix(es)" % len(changed), fixes=changed)
+    return bool(changed)
 
 
 def score(report):
@@ -254,6 +288,7 @@ def main():
     # ---- stage 1: evidence
     excerpt, extra = gather(case, trace)
     trace.log("source", "evidence_ready", "ok", excerpt_chars=len(excerpt), extra_fields=sorted(extra.keys()))
+    figs = FigureFetcher(case, excerpt, trace).start()  # runs while the model writes; no tokens
 
     llm = LLM(args.model, trace, T_START)
     if not llm.key:
@@ -276,12 +311,13 @@ def main():
             spec = parse_json(content)
             if not isinstance(spec, dict):
                 raise ValueError("top-level JSON is not an object")
-            trace.log("generate", "parse_spec", "ok", keys=sorted(spec.keys()), finish_reason=finish)
+            spec = expand(spec)
+            trace.log("generate", "parse_spec", "ok", keys=sorted(spec.keys()), finish_reason=finish, response_chars=len(content))
             break
         except ValueError as e:
             trace.log("generate", "parse_spec", "failed", error=str(e)[:200], finish_reason=finish, revision=True)
             spec = None
-            messages = messages[:2] + [{"role": "user", "content": "Your previous answer was not a complete valid JSON object (%s%s). Output ONLY the spec JSON, more concise (< 4500 tokens)." % (str(e)[:80], ", truncated" if finish == "length" else "")}]
+            messages = messages[:2] + [{"role": "user", "content": "Your previous answer was not a complete valid JSON object (%s%s). Output ONLY the spec JSON, more concise (< 2500 tokens)." % (str(e)[:80], ", truncated" if finish == "length" else "")}]
     if spec is None:
         trace.log("end", "summary", "failed: no spec", requests=llm.requests, prompt_tokens=llm.prompt_tokens,
                   completion_tokens=llm.completion_tokens, total_tokens=llm.prompt_tokens + llm.completion_tokens,
@@ -299,6 +335,9 @@ def main():
     if not report["ok"] and fix_from_report(spec, report, trace):
         report = validate(spec)
         trace.log("validate", "after_auto_fix", "pass" if report["ok"] else "%d error(s)" % len(report["errors"]), errors=report["errors"][:12])
+    if not report["ok"] and triage(spec, report, trace):
+        report = validate(spec)
+        trace.log("validate", "after_triage", "pass" if report["ok"] else "%d error(s)" % len(report["errors"]), errors=report["errors"][:12])
     best_spec, best_report = copy.deepcopy(spec), report
     revisions = 0
     while not report["ok"] and revisions < MAX_REPAIRS:
@@ -306,8 +345,8 @@ def main():
         current = {k: spec.get(k) for k in keys}
         if "controls" not in current:
             current["controls(read-only context)"] = [{k: c.get(k) for k in ("id", "type", "min", "max", "default", "length_from")} for c in spec.get("controls", []) if isinstance(c, dict)]
-        msg = prompts.REPAIR % ("\n".join("- " + e for e in report["errors"][:15]), json.dumps(current, ensure_ascii=False))
-        rmessages = [{"role": "system", "content": prompts.SYSTEM}, {"role": "user", "content": msg}]
+        msg = prompts.REPAIR % ("\n".join("- " + e for e in report["errors"][:15]), json.dumps(current, ensure_ascii=False, separators=(",", ":")))
+        rmessages = [{"role": "system", "content": prompts.REPAIR_SYSTEM}, {"role": "user", "content": msg}]
         try:
             content, finish = llm.chat(rmessages, REPAIR_MAX_TOKENS, purpose="repair_%d" % (revisions + 1), temperature=0.2)
             patch = parse_json(content)
@@ -317,9 +356,12 @@ def main():
         revisions += 1
         patch = {k: v for k, v in patch.items() if not k.startswith("controls(")}
         spec.update(patch)
+        spec = expand(spec)
         normalize(spec, case, trace)
         report = validate(spec)
         if not report["ok"] and fix_from_report(spec, report, trace):
+            report = validate(spec)
+        if not report["ok"] and triage(spec, report, trace):
             report = validate(spec)
         trace.log("repair", "apply_patch", "pass" if report["ok"] else "%d error(s)" % len(report["errors"]),
                   revision=revisions, patched_keys=sorted(patch.keys()), errors=report["errors"][:12])
@@ -346,7 +388,10 @@ def main():
     usable = not any(("compute threw at state [defaults]" in e) or ("compute: syntax error" in e) for e in report["errors"])
     build = {"validation": {k: report.get(k) for k in ("ok", "errors", "states", "checks", "engine")}, "revisions": revisions,
              "model": args.model}
-    html = render(spec, build)
+    theme = themes.resolve(spec, case)
+    trace.log("theme", "resolve", "ok", **theme)
+    figures = figs.collect(wait=1.0)
+    html = render(spec, build, theme, figures)
     out_html = os.path.join(args.output, "index.html")
     with open(out_html, "w", encoding="utf-8") as f:
         f.write(html)

@@ -17,11 +17,17 @@ def _js_safe_json(obj):
     return s.replace("</", "<\\/").replace("<!--", "<\\!--").replace("\u2028", "\\u2028").replace("\u2029", "\\u2029")
 
 
-def render(spec, build_info):
+def render(spec, build_info, theme=None, figures=None):
+    from . import theme as th
+    theme = theme or {"hue": 220, "motif": "flow", "style": "modern"}
+    build_info = dict(build_info, figures=figures or [])
     tpl = _read("template.html")
     title = re.sub(r"<[^>]+>", "", str(spec.get("title", "Interactive explanation")))
     parts = {
         "__TITLE__": html.escape(title),
+        "__HUE__": str(int(theme["hue"])),
+        "__STYLE__": theme["style"],
+        "__MOTIF__": th.motif_svg(theme["motif"]),
         "__SPEC__": _js_safe_json(spec),
         "__BUILD__": _js_safe_json(build_info),
         "__CORE__": _read("core.js"),

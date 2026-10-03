@@ -42,10 +42,33 @@
     return l.map(String);
   }
   var SVGNS = "http://www.w3.org/2000/svg";
+  var SUB = { "0": "₀", "1": "₁", "2": "₂", "3": "₃", "4": "₄", "5": "₅", "6": "₆", "7": "₇", "8": "₈", "9": "₉", "+": "₊", "-": "₋", "=": "₌", "(": "₍", ")": "₎", a: "ₐ", e: "ₑ", h: "ₕ", i: "ᵢ", j: "ⱼ", k: "ₖ", l: "ₗ", m: "ₘ", n: "ₙ", o: "ₒ", p: "ₚ", r: "ᵣ", s: "ₛ", t: "ₜ", u: "ᵤ", v: "ᵥ", x: "ₓ" };
+  var SUP = { "0": "⁰", "1": "¹", "2": "²", "3": "³", "4": "⁴", "5": "⁵", "6": "⁶", "7": "⁷", "8": "⁸", "9": "⁹", "+": "⁺", "-": "⁻", "=": "⁼", "(": "⁽", ")": "⁾", n: "ⁿ", i: "ⁱ", T: "ᵀ", k: "ᵏ", x: "ˣ" };
+  function mapChars(t, m, pre) { var all = t.split("").every(function (ch) { return m[ch]; }); return all ? t.split("").map(function (ch) { return m[ch]; }).join("") : pre + t; }
+  /* SVG text cannot render HTML: turn <sub>/<sup> into Unicode, strip other tags, decode entities */
+  function plain(x) {
+    var t = String(x === undefined || x === null ? "" : x);
+    t = t.replace(/<sub>(.*?)<\/sub>/g, function (_, a) { return mapChars(a, SUB, "_"); })
+         .replace(/<sup>(.*?)<\/sup>/g, function (_, a) { return mapChars(a, SUP, "^"); })
+         .replace(/<[^>]+>/g, "");
+    var d = document.createElement("textarea"); d.innerHTML = t; return d.value;
+  }
   function svg(tagName, attrs, text) {
     var e = document.createElementNS(SVGNS, tagName);
     Object.keys(attrs || {}).forEach(function (k) { e.setAttribute(k, attrs[k]); });
-    if (text !== undefined) e.textContent = text;
+    if (text !== undefined) {
+      var t = String(text);
+      if (/<su[bp]>/.test(t)) { // real sub/superscripts via tspans
+        t.split(/(<su[bp]>.*?<\/su[bp]>)/).forEach(function (seg) {
+          if (!seg) return;
+          var m = seg.match(/^<(su[bp])>(.*?)<\/su[bp]>$/);
+          var ts = document.createElementNS(SVGNS, "tspan");
+          if (m) { ts.setAttribute("baseline-shift", m[1] === "sub" ? "sub" : "super"); ts.setAttribute("font-size", "75%"); ts.textContent = plain(m[2]); }
+          else ts.textContent = plain(seg);
+          e.appendChild(ts);
+        });
+      } else e.textContent = plain(t);
+    }
     return e;
   }
   function niceRange(lo, hi) {
@@ -68,7 +91,23 @@
     $("cite").innerHTML = "Source: " + cite + (P.section ? " — <b>" + rich(P.section) + "</b>" : "") +
       (P.url ? ' — <a href="' + encodeURI(P.url) + '" target="_blank" rel="noopener">' + rich(P.url) + "</a>" : "");
 
-    var I = SPEC.intro || {};
+    var I = Object.assign({}, SPEC.intro || {});
+    // derived for free from the spec (the model does not spend tokens on these)
+    var strip = function (x) { return String(x || "").replace(/<(?!\/?(sub|sup)\b)[^>]+>/g, ""); };
+    if (!I.change) I.change = (SPEC.controls || []).map(function (c) { return "<b>" + strip(c.label || c.id) + "</b>"; }).join(" · ");
+    if (!I.watch) {
+      var w = (SPEC.readouts || []).slice(0, 2).map(function (r) { return strip(r.label || r.key); })
+        .concat((SPEC.views || []).slice(0, 2).map(function (v) { return strip(v.title); }));
+      I.watch = w.filter(Boolean).join(" · ") + (SPEC.stages && SPEC.stages.length ? ", and how each step of the mechanism map updates." : "");
+    }
+    (BUILD.figures || []).forEach(function (f) {
+      var fig = el("figure", { "class": "card pfig" });
+      var img = el("img", { alt: f.caption || f.label || "Figure from the paper", loading: "lazy" });
+      img.src = f.data;
+      fig.appendChild(img);
+      fig.appendChild(el("figcaption", { html: tag("PAPER") + " <b>" + rich(f.label || "Figure") + "</b> reproduced from the paper. " + rich(f.caption || "") }));
+      $("figs").appendChild(fig);
+    });
     [["what", "What is this?"], ["why", "Why does it matter?"], ["change", "What can I change?"], ["watch", "What should I watch?"]].forEach(function (p) {
       $("intro").appendChild(el("div", { "class": "card q" }, [el("h3", { text: p[1] }), el("p", { html: rich(I[p[0]]) })]));
     });
@@ -380,8 +419,11 @@
     (v.points || []).forEach(function (p) {
       var px = val(p.x), py = val(p.y);
       if (Array.isArray(px) && Array.isArray(py)) {
-        var labs = labelsFor(p.labels, px.length);
-        px.forEach(function (x, i) { pts.push({ x: Number(x), y: Number(py[i]), label: (p.label ? p.label + " " : "") + labs[i] }); });
+        var lk = p.labels !== undefined ? p.labels : (Array.isArray(val(p.label)) ? p.label : undefined);
+        var labs = labelsFor(lk, px.length);
+        if (lk === p.label) p = Object.assign({}, p, { label: "" });
+        var pl = p.label;
+        px.forEach(function (x, i) { pts.push({ x: Number(x), y: Number(py[i]), label: (pl ? pl + " " : "") + labs[i] }); });
       } else pts.push({ x: Number(px), y: Number(py), label: p.label });
     });
     var vl = (v.vlines || []).map(function (l) { return { v: Number(val(l.key)), label: l.label }; });
@@ -410,7 +452,7 @@
     for (var t = xr.lo; t <= xr.hi + 1e-9; t += xr.step) { if (t < xmin - 1e-9 || t > xmax + 1e-9) continue; s.appendChild(svg("text", { x: X(t), y: y0 + h + 16, "text-anchor": "middle", "class": "tick" }, fmt(t, 3))); }
     s.appendChild(svg("line", { x1: x0, x2: x0 + w, y1: y0 + h, y2: y0 + h, "class": "axis" }));
     hlines.forEach(function (l) { if (!isFinite(l.v)) return; s.appendChild(svg("line", { x1: x0, x2: x0 + w, y1: Y(l.v), y2: Y(l.v), "class": "refl" })); s.appendChild(svg("text", { x: x0 + w - 4, y: Y(l.v) - 4, "text-anchor": "end", "class": "rl" }, (l.label || "") + " " + fmt(l.v))); });
-    vlines.forEach(function (l) { if (!isFinite(l.v)) return; s.appendChild(svg("line", { x1: X(l.v), x2: X(l.v), y1: y0, y2: y0 + h, "class": "refl" })); s.appendChild(svg("text", { x: X(l.v) + 4, y: y0 + 12, "class": "rl" }, (l.label || "") + " " + fmt(l.v))); });
+    vlines.forEach(function (l) { if (!isFinite(l.v)) return; s.appendChild(svg("line", { x1: X(l.v), x2: X(l.v), y1: y0, y2: y0 + h, "class": "refl" })); s.appendChild(svg("text", { x: X(l.v) + 4, y: y0 + h - 6, "class": "rl" }, (l.label || "") + " = " + fmt(l.v))); });
     series.forEach(function (sr, si) {
       var d = "";
       for (var i = 0; i < Math.min(xs.length, sr.y.length); i++) { if (!isFinite(sr.y[i]) || !isFinite(xs[i])) { d += ""; continue; } d += (d ? "L" : "M") + X(xs[i]).toFixed(1) + "," + Y(sr.y[i]).toFixed(1); }

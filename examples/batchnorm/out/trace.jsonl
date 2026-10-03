@@ -1,0 +1,17 @@
+{"t": 0.0, "stage": "start", "action": "args", "result": "ok", "model": "deepseek/deepseek-v4.1-flash", "input": "case.json", "python": "3.14.5"}
+{"t": 0.001, "stage": "input", "action": "read_case", "result": "ok", "fields": ["audience", "excerpt", "focus", "source_url"]}
+{"t": 0.001, "stage": "source", "action": "read_excerpt", "result": "field 'excerpt'", "chars": 1064}
+{"t": 0.001, "stage": "source", "action": "evidence_ready", "result": "ok", "excerpt_chars": 1064, "extra_fields": []}
+{"t": 0.763, "stage": "figures", "action": "scan_page", "result": "2 relevant figure(s)", "page": "https://arxiv.org/html/1502.03167", "candidates": [{"label": "Figure 1", "score": 4}, {"label": "Figure 2", "score": 4}]}
+{"t": 1.471, "stage": "figures", "action": "embed", "result": "2 figure(s)", "bytes": 35564}
+{"t": 46.956, "stage": "llm", "action": "call", "result": "ok", "purpose": "generate_spec", "model": "deepseek/deepseek-v4.1-flash", "generation_id": "gen-1791023526-21j0Wq9oybfKYbHXva4o", "request_no": 1, "prompt_tokens": 1564, "completion_tokens": 1859, "reasoning_tokens": 0, "cached_tokens": 0, "cost": 0.00047538, "total_tokens": 3423, "finish_reason": "stop", "elapsed_s": 46.95, "response_chars": 5503, "cumulative_tokens": 3423}
+{"t": 46.957, "stage": "generate", "action": "parse_spec", "result": "ok", "keys": ["checks", "claims", "compute", "controls", "equations", "explorations", "first_action", "intro", "limitation", "paper", "readouts", "scope", "stages", "symbols", "theme", "title", "views"], "finish_reason": "stop", "response_chars": 5503}
+{"t": 46.957, "stage": "normalize", "action": "auto_fix", "result": "1 fix(es)", "fixes": ["paper.url filled from case"]}
+{"t": 47.072, "stage": "validate", "action": "execute_spec", "result": "1 error(s)", "engine": "mini-racer(V8)", "states": 0, "distinct_states": null, "checks": null, "control_effect": null, "errors": ["compute: syntax error: Unexpected token 'var'"], "warnings": [], "engine_issues": null}
+{"t": 49.556, "stage": "llm", "action": "call", "result": "ok", "purpose": "repair_1", "model": "deepseek/deepseek-v4.1-flash", "generation_id": "gen-1791023573-dhISYd2BbeAbqz2fKloo", "request_no": 2, "prompt_tokens": 511, "completion_tokens": 173, "reasoning_tokens": 0, "cached_tokens": 0, "cost": 0.00012935, "total_tokens": 684, "finish_reason": "stop", "elapsed_s": 2.48, "response_chars": 430, "cumulative_tokens": 4107}
+{"t": 49.68, "stage": "triage", "action": "free_fixes", "result": "1 fix(es)", "fixes": ["dropped faulty view(s) ['v3']"]}
+{"t": 49.797, "stage": "repair", "action": "apply_patch", "result": "pass", "revision": 1, "patched_keys": ["compute"], "errors": []}
+{"t": 49.797, "stage": "enrich", "action": "add_sweep_view", "result": "added", "control": "eps", "y": ["nvar"]}
+{"t": 49.917, "stage": "theme", "action": "resolve", "result": "ok", "hue": 205, "motif": "distribution", "style": "technical", "source": "model"}
+{"t": 49.919, "stage": "render", "action": "write_html", "result": "ok", "bytes": 114095, "self_contained": true}
+{"t": 49.919, "stage": "end", "action": "summary", "result": "success", "validation_ok": true, "revisions": 1, "requests": 2, "prompt_tokens": 2075, "completion_tokens": 2032, "total_tokens": 4107, "elapsed_s": 50.04}

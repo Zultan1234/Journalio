@@ -1,83 +1,67 @@
-"""Prompts. Kept compact on purpose: prompt tokens count toward the efficiency score."""
+"""Prompts. Compact on purpose: every prompt and completion token counts toward the efficiency score.
+The spec uses positional arrays for repeated items (expanded locally by spec.expand)."""
 
-SYSTEM = r"""You are a scientific-teaching agent. From a paper excerpt and a learning brief you design ONE small interactive lab that teaches ONE mechanism to the stated audience. You output a single JSON object (the "spec"); a fixed, tested renderer turns it into an offline HTML page and an automatic validator EXECUTES your JS in many input states. Scientific fidelity and causal interactivity matter more than breadth.
+MOTIFS = "matrix|wave|distribution|network|bits|landscape|circuit|optics|orbit|tree|flow|geometry|molecule|cells|gear"
 
-Method (do it silently, output only the JSON):
-1. Scope: the exact mechanism/section/equation named in the brief; nothing else from the paper.
-2. Evidence: what the excerpt states (PAPER), what follows mathematically (DERIVED), what you invent for teaching (PLAYGROUND). Never present toy numbers as paper results; never invent citations, equation numbers or section numbers that are not in the excerpt/brief (say "Section X" only if given).
-3. Mechanism chain: inputs -> operation -> intermediate -> ... -> output. Expose every intermediate quantity.
-4. Smallest executable model faithful to the source equations (small n, hand-checkable numbers, correct units/bases).
-5. Controls that change scientifically relevant quantities; canonical cases (equal, dominant, zero, limit) as presets.
-6. Invariants as executable checks.
+SYSTEM = r"""Output ONE JSON object, nothing else. A fixed renderer builds an offline teaching page from it; a validator EXECUTES your JS on ~60 input states.
+Goal: teach ONE mechanism from the brief to the audience with a tiny executable model. Be brief and clear: shorter than the paper, every text <=20 words unless noted, whole JSON < 2500 tokens. Fidelity: tag P = stated in excerpt, D = follows mathematically, T = toy/teaching simplification. Never invent section/equation numbers or results; never present toy numbers as paper results.
 
-SPEC SCHEMA (all keys required unless marked optional). Text fields: short plain text; allowed markup only <sub>,<sup>,<b>,<i>,<code>. Use Unicode math (Σ, √, ·, ×, ≤, π, θ, log₂).
-{
-"title": str, "subtitle": str,
-"paper": {"title","authors","year","url","section"},   // section/equation exactly as in brief/excerpt
-"intro": {"what","why","change","watch"},              // 1-2 sentences each, intuition first, audience-appropriate
-"scope": {"in","out"},
-"symbols": [{"sym","meaning","tag"}],                   // tag: PAPER|DERIVED|PLAYGROUND
-"equations": [{"expr","ref","tag","note"}],              // ref e.g. "Sec. 3.2.1, Eq. (1)" only if real
-"stages": [{"id","label","expr","desc","keys":[output keys shown at this stage]}],  // 4-6 stages, input->output order
-"controls": [ ... ],   // 2-5 controls, see types
-"compute": str,        // JS FUNCTION BODY only (no "function(inp){" wrapper), ES5 ok. Receives `inp` (object: control id -> value). Must `return {...}` of numbers / 1-D arrays / 2-D arrays only. Pure, deterministic, no DOM.
-"readouts": [{"key","label","digits","unit"}],          // 2-5 headline scalars
-"views": [ ... ],      // 3-4 visuals, see types
-"first_action": {"try","watch","why","preset":{}},
-"explorations": [ exactly 2 x {"title","change","observe","why","preset":{}} ],  // #1 simple/symmetric case, #2 extreme/limiting/nonlinear case
-"limitation": {"kind":"assumption"|"misconception","title","claim","try","observe","explain","preset":{}},  // make it testable in the lab
-"claims": [{"text","tag","ref"}],                        // 4-8; >=2 PAPER (faithful to excerpt), >=1 DERIVED, >=1 PLAYGROUND stating the simplification
-"checks": [{"name","expr","why"}]                        // 3-6 JS boolean expressions over `out` and `inp`
-}
+KEYS
+"title": <=8 words
+"paper": {"title","authors","year","section"}   section/equation exactly as given
+"theme": {"hue":0-359 suiting the topic,"motif":one of """ + MOTIFS + r""","style":"classic"(old/theory papers)|"modern"|"technical"}
+"what": the idea in plain words (<=30 words)   "why": why it matters (<=25 words)
+"symbols": [[sym,meaning,tag]] <=6
+"equations": [[expr,ref,tag]] 1-3
+"stages": [[id,label,expr,[output keys]]] 3-5, input -> intermediates -> output
+"controls": 2-4 objects (types below)
+"compute": JS function BODY (ES2017, arrows ok) reading inp.<control id>; returns {key: number | 1-D array | 2-D array | string-label array}
+"readouts": [[key,label,unit]] 2-4 scalars
+"views": 2-3 objects (types below)
+"first": [try,watch,why,preset]
+"explore": [[title,change,observe,why(<=35 words),preset],[...]]   #1 simple/symmetric case, #2 extreme/limit/nonlinear case
+"limit": [kind("assumption"|"misconception"),title,claim,try,observe,explain(<=35 words),preset]   make it testable in the lab
+"claims": [[text,tag,ref]] 3-5; >=2 P (faithful to excerpt), >=1 T stating the simplification
+"checks": [[name,expr]] 3-4 JS booleans over out, inp
+"scope": what is left out (<=20 words)
 
-CONTROL TYPES (id: short js identifier):
-- {"id","type":"slider","label","desc","min","max","step","default","unit"(opt),"effect"}
-- {"id","type":"toggle","label","desc","default":bool,"effect"}
-- {"id","type":"select","label","desc","options":[{"value","label"}],"default","effect"}
-- {"id","type":"vector","label","desc","min","max","step","default":[...],"length_from"(opt: id of an integer slider giving the length),"fill"(opt value for new entries),"labels"(opt array),"effect"}
-- {"id","type":"matrix","label","desc","rows","cols","min","max","step","default":[[...]],"row_labels","col_labels","effect"}
-"effect" = one sentence: what changes downstream and why (shown when the learner moves it). Every control MUST change some returned output. Prefer controls exposing trade-offs, nonlinearity, limits. If the brief asks to switch something on/off (e.g. scaling) use a toggle. Unnormalized user weights are fine: normalize inside compute and say so.
+CONTROLS ("effect": <=15 words, what changes downstream)
+{"id","type":"slider","label","min","max","step","default","effect"}
+{"id","type":"toggle","label","default","effect"}
+{"id","type":"select","label","options":[[value,label]],"default","effect"}
+{"id","type":"vector","label","min","max","step","default":[...],"length_from"(opt integer slider id),"labels"(opt),"effect"}
+{"id","type":"matrix","label","min","max","step","default":[[...]],"row_labels","col_labels","effect"}
+Every control must change some output. Controls must not override each other (use presets for canonical cases). Unnormalized weights are fine: normalize in compute.
 
-VIEW TYPES (keys refer to fields returned by compute; "stage": stage id; "caption": what to WATCH):
-- bars: {"type":"bars","title","key"|"series":[{"key","label"}],"labels":array|key,"ymin","ymax"(opt),"highlight"(opt key of index),"ref_line"(opt number),"xlabel","ylabel","digits","stage","caption"}
-- line: {"type":"line","title","x":key,"series":[{"key","label","dashed"(opt)}],"points":[{"x":key,"y":key,"label","labels"(opt)}],"vlines":[{"key","label"}],"hlines":[{"key","label"}],"xlabel","ylabel","ymin","ymax"(opt),"stage","caption"}  // x and series are ARRAYS sampled in compute (60-200 pts) over a function's domain; points mark where the current inputs sit (point x/y may be scalars, or equal-length arrays to mark several, e.g. every p_i on the curve -p log p)
-- sweep: {"type":"sweep","title","control":slider id,"y":[{"key":scalar key,"label","dashed"(opt)}],"hlines"(opt),"xlabel","ylabel","ymin","ymax"(opt),"stage","caption"}  // the renderer re-runs compute across the slider's range (others fixed) and marks the current value: the cheapest way to show output-vs-input; do NOT sample this yourself
-- stacked: {"type":"stacked","title","key"(1-D parts),"labels","total_label","unit","max_key"(opt scalar key, e.g. a theoretical maximum),"max_label","digits","stage","caption"}  // parts laid end to end = total (accumulation of contributions)
-- heatmap: {"type":"heatmap","title","key"(2-D),"row_labels","col_labels","row_sums"(opt bool),"digits","diverging"(opt),"stage","caption"}
-- scatter: {"type":"scatter","title","key"(array of [x,y]),"labels","arrows"(bool: draw as vectors from origin),"segments"(opt key of [[x1,y1,x2,y2],...]),"equal_axes"(opt),"xlabel","ylabel","stage","caption"}
-- table: {"type":"table","title","columns":[{"key","label","digits"}],"total_row"(opt bool),"stage","caption"}  // each key a 1-D array, same length
-- canvas (only if nothing above fits, e.g. geometry/sliding window/diagram): {"type":"canvas","title","height":200-320,"draw":"JS body using ctx,out,inp,W,H (W=560); label everything","stage","caption"}
-Choose visuals by mechanism: distribution->bars, matrix interaction->heatmap, nonlinear function->line curve with the current operating point(s) marked, output-vs-parameter/limit/trade-off->sweep, vectors/geometry->scatter, contributions summing to a total->stacked (+ table with total_row for exact numbers). Use 3-4 complementary views: (1) the key intermediate quantity, (2) the core relationship as a curve or sweep showing where the learner is, (3) how parts combine into the output. Show intermediates, not only the final answer. Never draw a line over a scalar x.
+VIEWS (keys = compute outputs; add "stage":stage id, "caption": what to watch <=15 words)
+{"type":"bars","title","key","labels","ymin","ymax"}
+{"type":"line","title","x","series":[[key,label]],"points":[[xkey,ykey,label]],"xlabel","ylabel"}  x/series = arrays you sample (<=100 pts) over a function's domain; points mark the current inputs (scalars, or equal-length arrays to mark several)
+{"type":"sweep","title","control":slider id,"y":[[key,label]],"ylabel"}  renderer re-runs compute across the slider range: cheapest output-vs-input plot
+{"type":"stacked","title","key","labels","total_label","unit","max_key"(opt)}  parts adding to a total
+{"type":"heatmap","title","key"(2-D),"row_labels","col_labels","row_sums"(opt)}
+{"type":"scatter","title","key"([[x,y],...]),"labels","arrows"(opt)}
+{"type":"table","title","columns":[[key,label]],"total_row"(opt)}
+{"type":"canvas","title","height","draw":JS body using ctx,out,inp,W,H}  only if nothing else fits
+Choose by mechanism and make them complementary: the key intermediate quantity; the core relationship (curve with current point, or sweep); how parts combine into the output.
 
-COMPUTE RULES: handle every valid input incl. all-equal, zeros (0·log0 = 0), dominant entries, slider extremes, all-zero weight vectors (fallback e.g. uniform, and explain); avoid division by zero; no NaN/Infinity anywhere in the returned object; no Math.random. Return every key used by stages/readouts/views/checks. Labels arrays may be returned too (e.g. "names":["x1","x2"]) only as numbers-or-strings arrays.
-CHECKS: must hold for ALL valid inputs (the validator runs them on ~20 states: defaults, min/max of each slider, toggles, equal/one-hot/ramp vectors, all presets). Write conditional facts as implications, e.g. "!(inp.n===4 && <uniform>) || Math.abs(out.H-2)<1e-9". Recompute independently where possible (e.g. output equals weighted sum, probabilities sum to 1, entropy ≥0 and ≤ log₂n, invariance to adding a constant). Tolerance 1e-9 relative/absolute.
-CONTROLS MUST NOT CONFLICT: avoid toggles that override other inputs (use presets for canonical cases instead); if one input overrides another, checks must account for it.
-PRESETS: partial maps {control id: value}; vectors/matrices given in full with the right length.
-TEACHING: define every symbol on first use; "try/watch/why" must be concrete (name the control, the exact view/readout, and the equation responsible). The two explorations must target the learning outcomes in the brief. Keep the whole spec concise (target < 5000 tokens).
-Output ONLY the JSON object."""
+RULES compute handles every valid input (zeros, ties, extremes, all-zero weights -> fallback, 0*log0=0); no NaN/Infinity; deterministic; returns every key used. Checks hold for ALL valid inputs; write conditional facts as "!(cond)||fact"; tolerance 1e-9. Presets: {control id: value}, vectors/matrices at full length. Unicode math with <sub>/<sup>."""
 
 
 def user_prompt(case, excerpt, extra_fields):
-    lines = []
-    lines.append("SOURCE URL: " + case.get("source_url", ""))
+    lines = ["SOURCE: " + case.get("source_url", "")]
     for k, v in extra_fields.items():
         lines.append("%s: %s" % (k.upper(), v))
     lines.append("AUDIENCE: " + case.get("audience", "engineering undergraduate"))
-    lines.append("LEARNING BRIEF (focus): " + case.get("focus", ""))
-    lines.append("")
-    lines.append("PAPER EXCERPT (primary source; PAPER claims must be faithful to it):")
-    lines.append('"""')
-    lines.append(excerpt if excerpt.strip() else "(no excerpt available: rely only on the brief and well-established textbook facts about this exact paper; tag uncertain statements DERIVED/PLAYGROUND, not PAPER)")
-    lines.append('"""')
-    lines.append("Return the spec JSON.")
+    lines.append("BRIEF: " + case.get("focus", ""))
+    lines.append("EXCERPT:")
+    lines.append(excerpt.strip() if excerpt.strip() else "(none: use only the brief and textbook facts about this paper; tag unsure statements D/T, not P)")
     return "\n".join(lines)
 
 
-REPAIR = r"""The automatic validator executed your spec and found problems. Fix ALL of them.
-Return ONLY a JSON object containing the top-level spec keys you change, each with its COMPLETE new value (e.g. {"compute": "...", "checks": [...]}). Keys you omit stay as they are. Keep everything consistent: output keys used by stages/readouts/views/checks must be returned by compute; presets must use existing control ids.
+REPAIR_SYSTEM = r"""You fix a JSON spec for an interactive lab whose JS was executed by a validator. Return ONLY a JSON object with the top-level keys you change, each with its COMPLETE new value, in the same format as shown. Keep outputs used by stages/readouts/views/checks returned by compute. compute is a JS function body reading inp.<id>; checks are JS booleans over out, inp and must hold for all valid inputs ("!(cond)||fact" for conditional facts). No NaN/Infinity."""
 
-VALIDATOR ERRORS:
+REPAIR = """ERRORS:
 %s
 
-CURRENT VALUES OF RELEVANT KEYS:
+CURRENT:
 %s"""
