@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>__TITLE__</title>
+<style>
+:root{--bg:#f7f7f4;--card:#fff;--fg:#1d1f24;--muted:#626875;--line:#dcdde0;--acc:#2f62c9;--accbg:#e9f0fd;
+--s1:#2f6fd6;--s2:#e07b28;--s3:#2a9d6f;--s4:#b3449a;--s5:#7a6a2b;
+--paper:#1f5fbf;--derived:#7a3fb5;--toy:#b8650b;--ok:#1e8a4c;--bad:#c23b2e;--hot:#ffd84d}
+@media (prefers-color-scheme:dark){:root{--bg:#15171b;--card:#1e2127;--fg:#e8e9ec;--muted:#a1a6b0;--line:#363a42;--acc:#7aa5ff;--accbg:#22304a;
+--s1:#6ea0ff;--s2:#f3a35c;--s3:#56c799;--s4:#e07ccc;--s5:#cdb866;--paper:#7aa8ff;--derived:#c39af0;--toy:#f2a957;--ok:#4fd08a;--bad:#ff7b6e;--hot:#8a6d00}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.55 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+main{max-width:1180px;margin:0 auto;padding:20px 16px 60px}
+h1{font-size:1.75rem;line-height:1.2;margin:.2em 0}
+h2{font-size:1.2rem;margin:1.8em 0 .6em;padding-bottom:.25em;border-bottom:2px solid var(--line)}
+h3{font-size:1rem;margin:.1em 0 .4em}
+a{color:var(--acc);overflow-wrap:anywhere}
+.cite{overflow-wrap:anywhere}
+code,.sym,.eqx,.sx,.ex{font-family:"Cambria Math","STIX Two Math","Latin Modern Math",Georgia,serif}
+code{background:var(--accbg);padding:0 .3em;border-radius:4px}
+.muted{color:var(--muted)}
+.sub{color:var(--muted);margin:.2em 0 .4em;font-size:1.05rem}
+.cite{font-size:.88rem;color:var(--muted)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px 16px}
+.grid4{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-top:14px}
+.q h3{color:var(--acc)}
+.q p{margin:0}
+#first{margin-top:14px;background:var(--accbg);border:1px solid var(--acc);border-radius:10px;padding:12px 16px;display:flex;gap:16px;align-items:center;flex-wrap:wrap}
+#first .tw{flex:1 1 400px}
+.btn{background:var(--acc);color:#fff;border:0;border-radius:8px;padding:8px 14px;font:inherit;font-weight:600;cursor:pointer}
+.btn.ghost{background:transparent;color:var(--acc);border:1px solid var(--acc)}
+.btn.warn{background:var(--toy)}
+.btn:focus-visible,.stage:focus-visible{outline:3px solid var(--hot);outline-offset:2px}
+#lab{display:grid;grid-template-columns:330px 1fr;gap:16px;align-items:start;scroll-margin-top:10px}
+@media (max-width:860px){#lab{grid-template-columns:1fr}}
+#ctrlpane{position:sticky;top:10px;max-height:calc(100vh - 20px);overflow:auto}
+.ctrl{padding:10px 0;border-bottom:1px solid var(--line)}
+.ctrl:last-child{border-bottom:0}
+.cl{display:flex;justify-content:space-between;gap:8px;font-weight:600}
+.cl.tog{justify-content:flex-start;align-items:center;cursor:pointer}
+.cv{font-variant-numeric:tabular-nums;color:var(--acc);font-weight:700}
+.cd{font-size:.83rem;color:var(--muted);margin-top:4px}
+input[type=range]{width:100%;accent-color:var(--acc)}
+.range{display:flex;justify-content:space-between;font-size:.75rem;color:var(--muted)}
+select{width:100%;padding:6px;font:inherit;margin-top:4px;background:var(--card);color:var(--fg);border:1px solid var(--line);border-radius:6px}
+.vrow{display:grid;grid-template-columns:minmax(28px,auto) 1fr 70px;gap:6px;align-items:center}
+.vl{font-size:.85rem}
+input.num,.mat input{width:100%;padding:3px 4px;font:inherit;font-size:.9rem;background:var(--card);color:var(--fg);border:1px solid var(--line);border-radius:5px}
+.mat{border-collapse:collapse;margin-top:6px}
+.mat th{font-weight:500;font-size:.8rem;color:var(--muted);padding:2px 4px}
+.mat td{padding:2px}
+.mat input{width:62px}
+#mechmap{display:flex;flex-wrap:wrap;align-items:stretch;gap:6px}
+.stage{background:var(--card);border:1.5px solid var(--line);border-radius:9px;padding:6px 10px;cursor:pointer;text-align:left;color:var(--fg);font:inherit;min-width:90px}
+.stage .sl{font-weight:650;font-size:.88rem}
+.stage .sx{font-size:.85rem;color:var(--muted)}
+.stage.sel{border-color:var(--acc);box-shadow:0 0 0 2px var(--accbg)}
+.arrow{align-self:center;color:var(--muted);font-weight:700}
+@keyframes hot{0%{background:var(--hot)}100%{background:var(--card)}}
+.stage.hot,.view.hot{animation:hot 1.2s ease-out}
+#inspect{margin-top:10px;font-size:.9rem}
+#inspect p{margin:.3em 0}
+.kv{font-variant-numeric:tabular-nums;margin:.2em 0;overflow-x:auto}
+.kv .k{font-family:monospace;color:var(--muted)}
+table.mini{border-collapse:collapse;display:inline-table;vertical-align:middle}
+table.mini td{border:1px solid var(--line);padding:1px 6px;font-size:.85rem}
+#readouts{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin:12px 0}
+.ro{background:var(--card);border:1px solid var(--line);border-radius:9px;padding:8px 10px}
+.ro .rk{font-size:.8rem;color:var(--muted)}
+.ro .rv{font-size:1.25rem;font-weight:700;font-variant-numeric:tabular-nums;overflow-x:auto}
+.ro .u{font-size:.8rem;font-weight:500;color:var(--muted)}
+.ro.flash{animation:hot 1.2s ease-out}
+#views{display:grid;grid-template-columns:repeat(auto-fit,minmax(380px,1fr));gap:12px}
+@media (max-width:520px){#views{grid-template-columns:1fr}}
+#views>*{min-width:0}.vb{overflow-x:auto}
+.view{margin:0}
+.vt{font-weight:650;margin-bottom:6px}
+.vs{font-weight:400;font-size:.78rem;color:var(--muted);border:1px solid var(--line);border-radius:10px;padding:0 6px;margin-left:4px}
+.vc{font-size:.86rem;color:var(--muted);margin-top:6px}
+.chart{width:100%;height:auto;display:block;color:var(--fg)}
+.chart text{fill:var(--fg)}
+.grid{stroke:var(--line);stroke-width:1}
+.axis{stroke:var(--muted);stroke-width:1.2}
+.tick{font-size:11px;fill:var(--muted)!important}
+.alabel{font-size:12px;font-weight:600}
+.bv{font-size:11px;font-variant-numeric:tabular-nums}
+.bar.hl{stroke:var(--fg);stroke-width:2}
+.ln{fill:none;stroke-width:2.5}
+.pt{fill:var(--s2);stroke:var(--card);stroke-width:2}
+.refl{stroke:var(--muted);stroke-dasharray:5 4}
+.rl{font-size:11px}
+.seg{stroke:var(--muted);stroke-width:1.5;stroke-dasharray:4 3}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:.82rem;margin-top:4px}
+.legend i{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:4px;vertical-align:-1px}
+table.heat,table.dt{border-collapse:collapse;margin:4px auto;font-variant-numeric:tabular-nums}
+.heat th,.dt th{font-size:.82rem;font-weight:600;padding:4px 8px;color:var(--muted)}
+.heat td{min-width:58px;text-align:center;padding:8px 6px;border:1px solid var(--card);font-size:.92rem}
+.heat td.rs{background:transparent!important;color:var(--muted)!important;font-size:.82rem}
+.dt td{border-top:1px solid var(--line);padding:4px 10px;text-align:right}
+.dt tr.tot td{font-weight:700;border-top:2px solid var(--fg)}
+#why{background:var(--card);border-left:4px solid var(--hot);border-radius:8px;padding:10px 14px;margin-top:12px;font-size:.92rem}
+#why p{margin:.3em 0}
+.chain span{display:inline-block;background:var(--accbg);border-radius:6px;padding:1px 7px;margin:2px 0}
+.deltas{margin:.3em 0;padding-left:1.2em}
+.tag{display:inline-block;font-size:.68rem;font-weight:800;letter-spacing:.04em;border-radius:4px;padding:1px 5px;color:#fff;vertical-align:1px}
+.tag-paper{background:var(--paper)}.tag-derived{background:var(--derived)}.tag-playground{background:var(--toy)}
+.legendtags{font-size:.85rem;color:var(--muted)}
+table.sy{border-collapse:collapse;width:100%}
+.sy td{border-bottom:1px solid var(--line);padding:6px 8px;vertical-align:top}
+.sy td.sym{font-size:1.1rem;white-space:nowrap;width:1%}
+.eq{border-left:3px solid var(--paper);padding:6px 12px;margin:8px 0;background:var(--card);border-radius:0 8px 8px 0}
+.eqx{font-size:1.15rem;overflow-x:auto}
+.eqm{font-size:.85rem}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media (max-width:860px){.two{grid-template-columns:1fr}}
+.expl .btn{margin:4px 0 8px}
+details summary{cursor:pointer;color:var(--acc);font-weight:600}
+#limitation{border-color:var(--toy);border-width:1.5px}
+#claims{padding-left:1.1em}
+#claims li{margin:.35em 0}
+.ref{color:var(--muted);font-size:.85rem}
+.badge{display:inline-block;border-radius:12px;padding:2px 10px;font-size:.82rem;font-weight:700;color:#fff}
+.badge.ok{background:var(--ok)}.badge.bad{background:var(--bad)}
+#livechecks{list-style:none;padding:0;margin:.4em 0}
+#livechecks li.ok{color:var(--ok)}#livechecks li.bad{color:var(--bad);font-weight:700}
+.err,#runerr{color:var(--bad);font-weight:600}
+#runerr{display:none;background:var(--card);border:1px solid var(--bad);padding:8px;border-radius:8px;margin-bottom:8px}
+.labhead{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:4px}
+footer{margin-top:40px;font-size:.8rem;color:var(--muted)}
+</style>
+</head>
+<body>
+<main>
+<header>
+  <h1 id="title"></h1>
+  <div class="sub" id="subtitle"></div>
+  <div class="cite" id="cite"></div>
+  <div class="legendtags" style="margin-top:6px">Labels used on this page:
+    <span class="tag tag-paper">PAPER</span> stated in the source excerpt ·
+    <span class="tag tag-derived">DERIVED</span> follows mathematically from it ·
+    <span class="tag tag-playground">PLAYGROUND</span> our simplified teaching example (not a result of the paper)</div>
+</header>
+
+<section class="grid4" id="intro" aria-label="Orientation"></section>
+<div id="first"></div>
+
+<h2>1 · The mechanism, step by step</h2>
+<div class="card"><div id="mechmap" aria-label="Mechanism map: click a stage to inspect it"></div><div id="inspect"></div></div>
+
+<h2>2 · Laboratory <span class="muted" style="font-size:.85rem;font-weight:400">— change the inputs, watch every downstream quantity update</span></h2>
+<div id="lab">
+  <aside class="card" id="ctrlpane" aria-label="Controls">
+    <div class="labhead"><b>Controls</b><button class="btn ghost" id="reset">Reset</button></div>
+    <div id="controls"></div>
+  </aside>
+  <section aria-label="Results">
+    <div id="runerr" role="alert"></div>
+    <div id="readouts"></div>
+    <div id="views"></div>
+    <div id="why" aria-live="polite"></div>
+  </section>
+</div>
+
+<h2>3 · Notation and equations</h2>
+<div class="two">
+  <div class="card"><h3>Symbols</h3><table class="sy"><tbody id="symbols"></tbody></table></div>
+  <div class="card"><h3>Equations</h3><div id="equations"></div></div>
+</div>
+
+<h2>4 · Guided explorations</h2>
+<div class="two" id="explorations"></div>
+
+<h2>5 · Limitation lab</h2>
+<div class="card" id="limitation"></div>
+
+<h2>6 · Source grounding</h2>
+<div class="card">
+  <ul id="claims"></ul>
+  <div id="scope" class="muted" style="font-size:.9rem"></div>
+</div>
+
+<h2>7 · Checks <span id="checkbadge" class="badge"></span></h2>
+<div class="two">
+  <div class="card"><h3>Live invariants (current inputs)</h3><ul id="livechecks"></ul></div>
+  <div class="card"><h3>How this page was verified</h3><div id="buildinfo"></div></div>
+</div>
+<footer>Generated by Journalio (Paper → Playground agent). All numbers on this page are computed live in your browser from the current inputs; the toy values are teaching examples, not experimental results from the paper. Works offline.</footer>
+</main>
+<script type="application/json" id="spec-data">__SPEC__</script>
+<script type="application/json" id="build-data">__BUILD__</script>
+<script>__CORE__</script>
+<script>__RUNTIME__</script>
+</body>
+</html>
