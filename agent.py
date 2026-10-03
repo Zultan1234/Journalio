@@ -182,6 +182,15 @@ def fix_from_report(spec, report, trace):
                 v.clear()
                 v.update({k: val for k, val in new.items() if val is not None})
                 fixes.append("view %s: line over scalar '%s' converted to a sweep of slider '%s'" % (new["id"], x, x))
+    # compute uses a control id as a bare variable (e.g. Q instead of inp.Q): declare it from inp
+    import re as _re
+    ids = [c.get("id") for c in spec.get("controls", []) if isinstance(c, dict) and c.get("id")]
+    undefined = {m for e in report.get("errors", []) for m in _re.findall(r"\b([A-Za-z_$][\w$]*) is not defined", e)}
+    bare = [i for i in ids if i in undefined]
+    comp = str(spec.get("compute", ""))
+    if bare and not _re.match(r"\s*(function\b|\(?\s*inp\s*\)?\s*=>)", comp):
+        spec["compute"] = "var " + ", ".join("%s = inp.%s" % (i, i) for i in bare) + ";\n" + comp
+        fixes.append("compute: declared bare control variable(s) %s from inp" % bare)
     if fixes:
         trace.log("normalize", "auto_fix_from_validation", "%d fix(es)" % len(fixes), fixes=fixes)
     return bool(fixes)
@@ -286,9 +295,10 @@ def main():
     case.setdefault("audience", "engineering undergraduate")
 
     # ---- stage 1: evidence
-    excerpt, extra = gather(case, trace)
+    case_dir = os.path.dirname(os.path.abspath(args.input))
+    excerpt, extra = gather(case, trace, case_dir)
     trace.log("source", "evidence_ready", "ok", excerpt_chars=len(excerpt), extra_fields=sorted(extra.keys()))
-    figs = FigureFetcher(case, excerpt, trace).start()  # runs while the model writes; no tokens
+    figs = FigureFetcher(case, excerpt, trace, case_dir).start()  # runs while the model writes; no tokens
 
     llm = LLM(args.model, trace, T_START)
     if not llm.key:
@@ -341,6 +351,9 @@ def main():
     best_spec, best_report = copy.deepcopy(spec), report
     revisions = 0
     while not report["ok"] and revisions < MAX_REPAIRS:
+        if revisions >= 1 and all(e.startswith("check '") for e in report["errors"]):
+            trace.log("repair", "skip", "only invariant checks still fail after a repair: dropping them is cheaper than another call")
+            break
         keys = relevant_keys(report["errors"])
         current = {k: spec.get(k) for k in keys}
         if "controls" not in current:
@@ -390,7 +403,7 @@ def main():
              "model": args.model}
     theme = themes.resolve(spec, case)
     trace.log("theme", "resolve", "ok", **theme)
-    figures = figs.collect(wait=1.0)
+    figures = figs.collect(wait=2.0)
     html = render(spec, build, theme, figures)
     out_html = os.path.join(args.output, "index.html")
     with open(out_html, "w", encoding="utf-8") as f:

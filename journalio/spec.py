@@ -36,9 +36,28 @@ def _pairs(xs, a="key", b="label"):
     return out
 
 
+def _unwrap(x):
+    """[[a, b, ...]] -> [a, b, ...] (models sometimes add a level of nesting)."""
+    while isinstance(x, list) and len(x) == 1 and isinstance(x[0], (list, dict)):
+        x = x[0]
+    return x
+
+
+LIMIT_NAMES = ["kind", "title", "claim", "try", "observe", "explain", "preset"]
+FIRST_NAMES = ["try", "watch", "why", "preset"]
+
+
 def expand(s):
     if not isinstance(s, dict):
         return s
+    for k in ("first", "limit", "first_action", "limitation"):
+        if k in s:
+            s[k] = _unwrap(s[k])
+    # repair blocks that were mis-expanded earlier (a whole positional row landed in the first field)
+    for k, names in (("limitation", LIMIT_NAMES), ("first_action", FIRST_NAMES)):
+        blk = s.get(k)
+        if isinstance(blk, dict) and isinstance(blk.get(names[0]), list) and len(blk[names[0]]) >= 3:
+            s[k] = _row(blk[names[0]], names)
     # intro
     intro = s.get("intro") if isinstance(s.get("intro"), dict) else {}
     for k in ("what", "why", "change", "watch"):
@@ -79,13 +98,19 @@ def expand(s):
                 v[k] = _pairs(v[k])
     # teaching blocks
     if "first" in s and "first_action" not in s:
-        s["first_action"] = _row(s.pop("first"), ["try", "watch", "why", "preset"])
+        s["first_action"] = _row(s.pop("first"), FIRST_NAMES)
     if "explore" in s and "explorations" not in s:
         s["explorations"] = _rows(s.pop("explore"), ["title", "change", "observe", "why", "preset"])
     elif isinstance(s.get("explorations"), list):
         s["explorations"] = _rows(s["explorations"], ["title", "change", "observe", "why", "preset"])
     if "limit" in s and "limitation" not in s:
-        s["limitation"] = _row(s.pop("limit"), ["kind", "title", "claim", "try", "observe", "explain", "preset"])
+        s["limitation"] = _row(s.pop("limit"), LIMIT_NAMES)
+    # text fields must be strings
+    for blk in [s.get("first_action"), s.get("limitation")] + list(s.get("explorations") or []):
+        if isinstance(blk, dict):
+            for kk, vv in list(blk.items()):
+                if kk != "preset" and isinstance(vv, (list, dict)):
+                    blk[kk] = " ".join(str(x) for x in vv) if isinstance(vv, list) else str(vv)
     s["claims"] = _rows(s.get("claims"), ["text", "tag", "ref"])
     for c in s["claims"]:
         c["tag"] = tag(c.get("tag"))

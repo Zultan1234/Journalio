@@ -2,7 +2,7 @@
 
 Journalio turns a focused research-paper excerpt and a learning brief into a **self-contained interactive lab** (`out/index.html`) that teaches one mechanism to an engineering undergraduate. It also writes an execution trace (`out/trace.jsonl`).
 
-**Team:** _add team member names here_
+**Team:** Mahdi Slim, Amir Darwich
 
 ## Quick start
 
@@ -18,7 +18,15 @@ Requirements: Python 3.11+, no GPU, no system packages, no build step. The gener
 
 ## Input format
 
-`case.json` (UTF-8) needs `source_url`, `focus` and `audience`. An excerpt field (`excerpt`, `text`, `paper_excerpt`, `context`…) is used as the primary source when present. Any other short string fields (for example `title` or `section`) are passed to the model as context. If there's no excerpt, the agent tries to fetch `source_url`; it moves on without it if the network is blocked.
+`case.json` (UTF-8) has three required string fields: `source_url`, `focus` (the concept and required learning outcomes) and `audience`.
+
+The source text is extracted from `source_url` without any LLM call, under a 12 s time budget:
+
+- arXiv links use the paper's HTML version, which is sectioned and keeps equations as LaTeX.
+- PDFs use PyMuPDF text. This covers direct links, IEEE Xplore stamp pages, DOI redirects, or a PDF saved next to case.json for paywalled papers.
+- Other pages are stripped to plain text.
+
+Only the paper's title/author line and the section(s) named in `focus` are sent to the model, for example "Section 3.2.1" (including the parent section's short lead-in), "Sec. 6" or "Section II", capped at about 1.8k tokens. If no section is named, the agent sends the paragraphs that best match the brief. If the source cannot be reached, for example when the network is limited to OpenRouter, the model works from the brief alone and the trace says so. If a case happens to include an `excerpt` field, it is used instead of downloading.
 
 ## Architecture
 
@@ -71,7 +79,9 @@ render.py           template.html + core.js + runtime.js + spec + figures → si
 
 **Text economy.** The page is meant to be much shorter than the paper. "What can I change?" and "What should I watch?" are generated from the controls and views, not written by the model. Every text field has a word limit.
 
-**Images.** The page combines three kinds of visual: (1) the paper's own relevant figure, fetched in parallel when the paper's HTML is reachable; (2) a topic illustration from a built-in SVG library, chosen by the model with one word; (3) the live, computed charts. No image generation and no image API are used. Under grading conditions (network restricted to OpenRouter), (1) is skipped automatically.
+**Images from the paper's PDF.** `pdffigs.py` uses PyMuPDF to read the PDF's text layer and find figure captions ("Fig. 3.", "Figure 2:"). It locates each figure's region next to its caption, bounded by the paragraphs around it and tightened to the actual ink, so it works for born-digital vector plots, embedded images and scanned papers with an OCR layer. It renders just that region as a compressed JPEG (typically 15–60 KB), scores captions against the brief and the figures named in the excerpt, and embeds the best one or two with their caption and PDF page number. The PDF is taken from a local file if one is provided (a `"pdf"` field in case.json, or any `.pdf` next to case.json), otherwise downloaded from `source_url`. Downloads handle direct PDF links, arXiv, IEEE Xplore stamp pages (needs a network with IEEE access) and DOI redirects. When a case has no excerpt, the same PDF supplies the text. All of this runs in a background thread during the LLM call and costs 0 tokens. When no PDF is reachable (e.g. during grading, where only OpenRouter is reachable) it is skipped in under a second, and the page relies on its live charts and topic illustration.
+
+**Interface.** Every page gets a topic-specific design. A curated three-colour palette per topic family is picked deterministically from the paper title, so different papers look different. The page has an interactive animated background matched to the mechanism: a rippling grid for matrices, flowing waves for signals, a Galton board for probability, a node network for graphs, bit rain for information, a flow field for optimisation, current pulses for circuits, a refracting lens for optics, orbits, a swaying tree, a vector field, the Game of Life and meshing gears. It reacts to the cursor and clicks, and pulses whenever the lab recomputes. Cards are translucent glass, with gradient headings, a sticky section nav with reading progress, a light/dark/auto switch and a motion switch. `prefers-reduced-motion` is respected, and the animation pauses in background tabs. All of this costs 0 tokens: the model only names the topic family.
 
 **Budgets.** The client enforces the assessment limits: at most 10 requests, at most 30,000 completion tokens and a 570 s deadline. A typical run makes **1 request** (2–3 only if repair is needed). Validator infrastructure problems never trigger a repair call, and TLS errors are retried only once. Hidden reasoning is turned off by default to save tokens. Set `JOURNALIO_REASONING=low|medium|high` to turn it on.
 
@@ -91,15 +101,19 @@ Exit codes: `0` success · `2` bad input · `3` no API key · `4` no spec from t
 | `journalio/render.py` | builds the single-file HTML |
 | `journalio/spec.py` | compact → full spec expansion |
 | `journalio/theme.py` | adaptive theme and SVG illustration library |
-| `journalio/figures.py` | background retrieval and embedding of the paper's own figure |
+| `journalio/figures.py` | obtains the paper PDF (local file or download) in the background |
+| `journalio/pdffigs.py` | finds, crops and embeds captioned figures from the PDF |
 | `journalio/assets/core.js` | pure functions shared by the page and the validator |
 | `journalio/assets/runtime.js`, `template.html` | generic page runtime and layout (no paper-specific content) |
+| `tokens.py` | token usage per run from trace.jsonl (`python tokens.py`, add `--calls` for per-call detail) |
+| `rerender.py` | re-applies the current design to existing pages (no API calls) |
+| `journalio/assets/bg.js` | interactive animated backgrounds and page chrome |
 | `run_examples.py` | runs all or selected examples; writes summary.md and a gallery |
 | `examples/` | example inputs (and generated outputs) |
 
 ## Examples
 
-Nine practice cases live in `examples/<name>/case.json`. They have the same shape and scope as the assessment cases: a focused brief plus a short excerpt. The excerpts are paraphrased from the papers for practice.
+Ten practice cases live in `examples/<name>/case.json`. They have the same shape and scope as the assessment cases: a focused brief plus a short excerpt. The excerpts are paraphrased from the papers for practice.
 
 | folder | paper and section | mechanism |
 |---|---|---|
@@ -112,6 +126,7 @@ Nine practice cases live in `examples/<name>/case.json`. They have the same shap
 | `dropout` | Hinton et al. 2012 | dropout and the "mean network" |
 | `pagerank` | Brin & Page 1998, §2.1.1 | PageRank with damping |
 | `sampling` | Shannon 1949, Theorem 1 | sampling theorem and aliasing |
+| `klopfenstein` | Klopfenstein 1956 (Proc. IRE) | optimum equal-ripple impedance taper |
 
 Run one example:
 
@@ -133,6 +148,6 @@ python run_examples.py --only adam pagerank  # selected cases
 
 - [requests](https://pypi.org/project/requests/) (Apache-2.0): HTTP client.
 - [mini-racer](https://pypi.org/project/mini-racer/) (ISC): embedded V8, used to execute and validate the generated JavaScript at build time.
-- [pypdf](https://pypi.org/project/pypdf/) (BSD): optional PDF text extraction when no excerpt is given.
+- [PyMuPDF](https://pypi.org/project/PyMuPDF/) (AGPL-3.0, Artifex): PDF text extraction and figure rendering.
 - All page runtime code (SVG charts, controls, layout) was written for this project with the help of an AI coding assistant (Claude). It has no external JS/CSS libraries, CDNs or fonts.
 - Practice excerpts are short quotations from Vaswani et al. (2017), *Attention Is All You Need*, and Shannon (1948), *A Mathematical Theory of Communication*.

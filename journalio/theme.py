@@ -11,7 +11,7 @@ MOTIF_INFO = {
     "network": (285, "neural network neuron layer perceptron backprop activation graph node edge gnn"),
     "bits": (170, "bit information channel coding communication capacity compression shannon code noise redundancy"),
     "landscape": (28, "optimization gradient descent loss minimum convex learning rate momentum adam objective"),
-    "circuit": (48, "circuit voltage current resistor capacitor inductor transistor amplifier rc rlc impedance"),
+    "circuit": (48, "circuit voltage current resistor capacitor inductor transistor amplifier rc rlc impedance taper microwave stub matching antenna waveguide transmission"),
     "optics": (55, "light lens optic refraction reflection photon laser wavelength diffraction interference"),
     "orbit": (210, "orbit quantum atom electron energy level physics momentum particle gravity planet spin"),
     "tree": (140, "tree search decision recursion hierarchy algorithm sort heap binary dynamic programming"),
@@ -23,15 +23,43 @@ MOTIF_INFO = {
 }
 STYLES = ("classic", "modern", "technical")
 
+# Curated 3-hue palettes per motif (2-3 variants; the paper title picks one deterministically) and the
+# animated background engine used for that motif. Model-chosen hues are ignored: models tend to pick ~210 (blue).
+PALETTES = {
+    "matrix": [("Indigo circuit", 238, 280, 190), ("Ultraviolet", 262, 320, 205), ("Cobalt mint", 222, 165, 275)],
+    "wave": [("Lagoon", 188, 215, 155), ("Sea glass", 172, 200, 250), ("Tidal", 200, 240, 170)],
+    "distribution": [("Orchid sunset", 300, 265, 25), ("Berry", 330, 280, 45), ("Plum citrus", 285, 340, 55)],
+    "network": [("Neon synapse", 275, 320, 195), ("Aurora", 160, 260, 300), ("Electric", 250, 190, 330)],
+    "bits": [("Terminal", 145, 175, 95), ("Signal teal", 168, 200, 130), ("Phosphor", 120, 160, 60)],
+    "landscape": [("Desert dusk", 22, 345, 45), ("Ember", 12, 40, 330), ("Canyon", 30, 0, 200)],
+    "circuit": [("Copper trace", 38, 18, 185), ("Solder", 48, 200, 15), ("PCB", 140, 45, 190)],
+    "optics": [("Prism", 48, 200, 330), ("Daylight", 40, 190, 275), ("Spectrum", 55, 300, 175)],
+    "orbit": [("Deep space", 245, 290, 190), ("Nebula", 280, 330, 210), ("Starlight", 220, 50, 265)],
+    "tree": [("Forest", 135, 85, 175), ("Moss", 100, 150, 45), ("Canopy", 150, 110, 200)],
+    "flow": [("Current", 195, 230, 165), ("Jetstream", 210, 180, 260), ("Rapids", 185, 250, 140)],
+    "geometry": [("Coral vector", 345, 280, 25), ("Rose quartz", 330, 250, 190), ("Magenta axis", 315, 210, 40)],
+    "molecule": [("Emerald", 158, 120, 195), ("Bioluminescent", 170, 280, 130), ("Catalyst", 145, 40, 190)],
+    "cells": [("Petri", 95, 150, 45), ("Lime culture", 80, 130, 190), ("Microscope", 110, 175, 300)],
+    "gear": [("Rust & steel", 18, 205, 40), ("Brass", 35, 15, 195), ("Machine", 10, 220, 50)],
+}
+ENGINE = {"matrix": "ripplegrid", "wave": "waves", "distribution": "galton", "network": "network", "bits": "rain",
+          "landscape": "flowfield", "circuit": "circuit", "optics": "rays", "orbit": "orbits", "tree": "tree",
+          "flow": "flowfield", "geometry": "vectors", "molecule": "network", "cells": "life", "gear": "gears"}
+
+
+def scores(text):
+    words = re.findall(r"[a-z]+", text.lower())
+    out = {}
+    for m, (_, kw) in MOTIF_INFO.items():
+        keys = kw.split()
+        out[m] = sum(1 for w in words for k in keys if w == k or (len(k) >= 5 and w.startswith(k)))
+    return out
+
 
 def classify(text):
-    t = text.lower()
-    best, score = "flow", 0
-    for m, (_, kw) in MOTIF_INFO.items():
-        sc = sum(t.count(w) for w in kw.split())
-        if sc > score:
-            best, score = m, sc
-    return best
+    sc = scores(text)
+    best = max(sc, key=sc.get)
+    return best if sc[best] > 0 else "flow"
 
 
 def resolve(spec, case):
@@ -39,9 +67,15 @@ def resolve(spec, case):
     th = spec.get("theme") if isinstance(spec.get("theme"), dict) else {}
     motif = str(th.get("motif", "")).lower().strip()
     src = "model"
+    text = " ".join([case.get("focus", ""), str(spec.get("title", "")), str(spec.get("intro", {}).get("what", ""))])
     if motif not in MOTIF_INFO:
-        motif = classify(" ".join([case.get("focus", ""), str(spec.get("title", "")), str(spec.get("intro", {}).get("what", ""))]))
+        motif = classify(text)
         src = "keywords"
+    else:  # free sanity check: override a weak model choice when the brief clearly points elsewhere
+        sc = scores(text)
+        best = max(sc, key=sc.get)
+        if sc[best] >= 3 and sc[best] >= 2 * max(1, sc.get(motif, 0)) and best != motif:
+            motif, src = best, "keywords (overrode model: %s)" % motif
     try:
         hue = int(float(th.get("hue"))) % 360
     except (TypeError, ValueError):
@@ -53,7 +87,11 @@ def resolve(spec, case):
         except (IndexError, ValueError):
             year = 2020
         style = "classic" if year < 1985 else "modern"
-    return {"hue": hue, "motif": motif, "style": style, "source": src}
+    import zlib
+    variants = PALETTES[motif]
+    seed = zlib.crc32(("%s|%s" % (spec.get("paper", {}).get("title", ""), spec.get("title", ""))).encode("utf-8"))
+    name, h1, h2, h3 = variants[seed % len(variants)]
+    return {"hue": h1, "h2": h2, "h3": h3, "palette": name, "motif": motif, "engine": ENGINE[motif], "style": style, "source": src}
 
 
 # ------------------------------------------------------------------ SVG motifs (240x140, themed by CSS vars)

@@ -4,12 +4,12 @@ The spec uses positional arrays for repeated items (expanded locally by spec.exp
 MOTIFS = "matrix|wave|distribution|network|bits|landscape|circuit|optics|orbit|tree|flow|geometry|molecule|cells|gear"
 
 SYSTEM = r"""Output ONE JSON object, nothing else. A fixed renderer builds an offline teaching page from it; a validator EXECUTES your JS on ~60 input states.
-Goal: teach ONE mechanism from the brief to the audience with a tiny executable model. Be brief and clear: shorter than the paper, every text <=20 words unless noted, whole JSON < 2500 tokens. Fidelity: tag P = stated in excerpt, D = follows mathematically, T = toy/teaching simplification. Never invent section/equation numbers or results; never present toy numbers as paper results.
+Goal: teach ONE mechanism from the brief to the audience with a tiny executable model. Be brief and clear: shorter than the paper, every text <=20 words unless noted, whole JSON < 2500 tokens. Fidelity: tag P = stated in the source text, D = follows mathematically, T = toy/teaching simplification. Never invent section/equation numbers or results; never present toy numbers as paper results.
 
 KEYS
 "title": <=8 words
 "paper": {"title","authors","year","section"}   section/equation exactly as given
-"theme": {"hue":0-359 suiting the topic,"motif":one of """ + MOTIFS + r""","style":"classic"(old/theory papers)|"modern"|"technical"}
+"theme": {"motif":one of """ + MOTIFS + r""" (closest to the mechanism),"style":"classic"(old/theory papers)|"modern"|"technical"}
 "what": the idea in plain words (<=30 words)   "why": why it matters (<=25 words)
 "symbols": [[sym,meaning,tag]] <=6
 "equations": [[expr,ref,tag]] 1-3
@@ -21,7 +21,7 @@ KEYS
 "first": [try,watch,why,preset]
 "explore": [[title,change,observe,why(<=35 words),preset],[...]]   #1 simple/symmetric case, #2 extreme/limit/nonlinear case
 "limit": [kind("assumption"|"misconception"),title,claim,try,observe,explain(<=35 words),preset]   make it testable in the lab
-"claims": [[text,tag,ref]] 3-5; >=2 P (faithful to excerpt), >=1 T stating the simplification
+"claims": [[text,tag,ref]] 3-5; >=2 P (faithful to source text), >=1 T stating the simplification
 "checks": [[name,expr]] 3-4 JS booleans over out, inp
 "scope": what is left out (<=20 words)
 
@@ -47,14 +47,12 @@ Choose by mechanism and make them complementary: the key intermediate quantity; 
 RULES compute handles every valid input (zeros, ties, extremes, all-zero weights -> fallback, 0*log0=0); no NaN/Infinity; deterministic; returns every key used. Checks hold for ALL valid inputs; write conditional facts as "!(cond)||fact"; tolerance 1e-9. Presets: {control id: value}, vectors/matrices at full length. Unicode math with <sub>/<sup>."""
 
 
-def user_prompt(case, excerpt, extra_fields):
-    lines = ["SOURCE: " + case.get("source_url", "")]
-    for k, v in extra_fields.items():
-        lines.append("%s: %s" % (k.upper(), v))
-    lines.append("AUDIENCE: " + case.get("audience", "engineering undergraduate"))
-    lines.append("BRIEF: " + case.get("focus", ""))
-    lines.append("EXCERPT:")
-    lines.append(excerpt.strip() if excerpt.strip() else "(none: use only the brief and textbook facts about this paper; tag unsure statements D/T, not P)")
+def user_prompt(case, source_text, extra_fields=None):
+    lines = ["SOURCE: " + case.get("source_url", ""),
+             "AUDIENCE: " + case.get("audience", "engineering undergraduate"),
+             "BRIEF: " + case.get("focus", ""),
+             "SOURCE TEXT (extracted from SOURCE; tag P only what it states):"]
+    lines.append(source_text.strip() if source_text.strip() else "(source not reachable: use only the brief and well-established facts about this paper; tag unsure statements D/T, not P)")
     return "\n".join(lines)
 
 

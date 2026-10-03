@@ -19,13 +19,19 @@ def _js_safe_json(obj):
 
 def render(spec, build_info, theme=None, figures=None):
     from . import theme as th
-    theme = theme or {"hue": 220, "motif": "flow", "style": "modern"}
+    theme = theme or th.resolve({}, {})
     build_info = dict(build_info, figures=figures or [])
     tpl = _read("template.html")
     title = re.sub(r"<[^>]+>", "", str(spec.get("title", "Interactive explanation")))
     parts = {
         "__TITLE__": html.escape(title),
         "__HUE__": str(int(theme["hue"])),
+        "__H2__": str(int(theme.get("h2", theme["hue"] + 150))),
+        "__H3__": str(int(theme.get("h3", theme["hue"] + 60))),
+        "__ENGINE__": html.escape(theme.get("engine", "network")),
+        "__MOTIFNAME__": html.escape(theme["motif"]),
+        "__PALETTE__": html.escape(theme.get("palette", "")),
+        "__BG__": _read("bg.js"),
         "__STYLE__": theme["style"],
         "__MOTIF__": th.motif_svg(theme["motif"]),
         "__SPEC__": _js_safe_json(spec),

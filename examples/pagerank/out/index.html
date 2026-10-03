@@ -1,28 +1,56 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-engine="network" data-motif="network">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>PageRank: rank flows along links</title>
 <style>
-:root{--h:210;--bg:hsl(var(--h) 25% 97.5%);--card:#fff;--fg:hsl(var(--h) 15% 13%);--muted:hsl(var(--h) 8% 42%);--line:hsl(var(--h) 12% 86%);
---acc:hsl(var(--h) 62% 40%);--accbg:hsl(var(--h) 70% 95%);--band:hsl(var(--h) 55% 93%);
---s1:hsl(var(--h) 64% 46%);--s2:hsl(calc(var(--h) + 150) 62% 46%);--s3:hsl(calc(var(--h) + 60) 55% 40%);--s4:hsl(calc(var(--h) + 270) 50% 52%);--s5:hsl(calc(var(--h) + 30) 60% 42%);
---paper:#1f5fbf;--derived:#7a3fb5;--toy:#b8650b;--ok:#1e8a4c;--bad:#c23b2e;--hot:hsl(calc(var(--h) + 180) 95% 80%);
---font:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;--hfont:var(--font)}
-@media (prefers-color-scheme:dark){:root{--bg:hsl(var(--h) 18% 9%);--card:hsl(var(--h) 14% 13%);--fg:hsl(var(--h) 10% 91%);--muted:hsl(var(--h) 8% 65%);--line:hsl(var(--h) 10% 25%);
---acc:hsl(var(--h) 85% 72%);--accbg:hsl(var(--h) 35% 20%);--band:hsl(var(--h) 30% 16%);
---s1:hsl(var(--h) 80% 66%);--s2:hsl(calc(var(--h) + 150) 70% 62%);--s3:hsl(calc(var(--h) + 60) 60% 60%);--s4:hsl(calc(var(--h) + 270) 65% 70%);--s5:hsl(calc(var(--h) + 30) 70% 62%);
---paper:#7aa8ff;--derived:#c39af0;--toy:#f2a957;--ok:#4fd08a;--bad:#ff7b6e;--hot:hsl(calc(var(--h) + 180) 60% 30%)}}
+:root{--h:275;--h2:320;--h3:195;--is-dark:0;--bg:hsl(var(--h) 45% 96%);--card:hsl(var(--h) 60% 99%);--glass:hsla(var(--h),70%,99%,.72);--fg:hsl(var(--h) 30% 12%);--muted:hsl(var(--h) 12% 38%);--line:hsla(var(--h),30%,50%,.22);
+--acc:hsl(var(--h) 70% 42%);--acc2:hsl(var(--h2) 70% 45%);--acc3:hsl(var(--h3) 70% 40%);--accbg:hsla(var(--h),80%,60%,.13);--band:hsla(var(--h),70%,96%,.6);
+--s1:hsl(var(--h) 70% 48%);--s2:hsl(var(--h2) 70% 50%);--s3:hsl(var(--h3) 65% 42%);--s4:hsl(calc(var(--h) + 120) 55% 48%);--s5:hsl(calc(var(--h2) + 60) 60% 45%);
+--g1:hsla(var(--h),95%,72%,.55);--g2:hsla(var(--h2),95%,72%,.5);--g3:hsla(var(--h3),95%,70%,.45);
+--paper:#1f5fbf;--derived:#7a3fb5;--toy:#b8650b;--ok:#1e8a4c;--bad:#c23b2e;--hot:hsla(var(--h3),95%,62%,.45);--shadow:0 8px 30px hsla(var(--h),50%,30%,.12);
+--font:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;--hfont:var(--font);color-scheme:light}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]){--is-dark:1;--bg:hsl(var(--h) 55% 7%);--card:hsl(var(--h) 40% 12%);--glass:hsla(var(--h),45%,11%,.68);--fg:hsl(var(--h) 25% 93%);--muted:hsl(var(--h) 18% 70%);--line:hsla(var(--h),60%,75%,.18);
+--acc:hsl(var(--h) 90% 72%);--acc2:hsl(var(--h2) 90% 72%);--acc3:hsl(var(--h3) 85% 66%);--accbg:hsla(var(--h),80%,60%,.16);--band:hsla(var(--h),50%,14%,.55);
+--s1:hsl(var(--h) 88% 68%);--s2:hsl(var(--h2) 85% 68%);--s3:hsl(var(--h3) 80% 62%);--s4:hsl(calc(var(--h) + 120) 70% 65%);--s5:hsl(calc(var(--h2) + 60) 75% 65%);
+--g1:hsla(var(--h),90%,45%,.45);--g2:hsla(var(--h2),90%,42%,.4);--g3:hsla(var(--h3),90%,40%,.35);
+--paper:#7aa8ff;--derived:#c39af0;--toy:#f2a957;--ok:#4fd08a;--bad:#ff7b6e;--hot:hsla(var(--h3),90%,55%,.4);--shadow:0 10px 34px rgba(0,0,0,.35);color-scheme:dark}}
+:root[data-theme=dark]{--is-dark:1;--bg:hsl(var(--h) 55% 7%);--card:hsl(var(--h) 40% 12%);--glass:hsla(var(--h),45%,11%,.68);--fg:hsl(var(--h) 25% 93%);--muted:hsl(var(--h) 18% 70%);--line:hsla(var(--h),60%,75%,.18);
+--acc:hsl(var(--h) 90% 72%);--acc2:hsl(var(--h2) 90% 72%);--acc3:hsl(var(--h3) 85% 66%);--accbg:hsla(var(--h),80%,60%,.16);--band:hsla(var(--h),50%,14%,.55);
+--s1:hsl(var(--h) 88% 68%);--s2:hsl(var(--h2) 85% 68%);--s3:hsl(var(--h3) 80% 62%);--s4:hsl(calc(var(--h) + 120) 70% 65%);--s5:hsl(calc(var(--h2) + 60) 75% 65%);
+--g1:hsla(var(--h),90%,45%,.45);--g2:hsla(var(--h2),90%,42%,.4);--g3:hsla(var(--h3),90%,40%,.35);
+--paper:#7aa8ff;--derived:#c39af0;--toy:#f2a957;--ok:#4fd08a;--bad:#ff7b6e;--hot:hsla(var(--h3),90%,55%,.4);--shadow:0 10px 34px rgba(0,0,0,.35);color-scheme:dark}
 body.classic{--font:"Iowan Old Style","Palatino Linotype",Palatino,"Book Antiqua",Georgia,serif;--hfont:var(--font)}
 body.technical{--hfont:ui-monospace,"Cascadia Code","SF Mono",Consolas,monospace}
 *{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.55 var(--font)}
+body{margin:0;color:var(--fg);font:15px/1.6 var(--font);background:var(--bg);
+background-image:radial-gradient(60vw 60vw at 8% 0%,var(--g1),transparent 60%),radial-gradient(55vw 55vw at 100% 20%,var(--g2),transparent 60%),radial-gradient(70vw 50vw at 50% 110%,var(--g3),transparent 60%);background-attachment:fixed;min-height:100vh}
+#bg{position:fixed;inset:0;width:100vw;height:100vh;z-index:0;pointer-events:none;opacity:.9}
+main{position:relative;z-index:1}
+#topbar{position:sticky;top:0;z-index:5;display:flex;align-items:center;gap:10px;padding:8px 16px;background:var(--glass);backdrop-filter:blur(14px) saturate(160%);-webkit-backdrop-filter:blur(14px) saturate(160%);border-bottom:1px solid var(--line)}
+#topbar .brand{font-weight:800;letter-spacing:.02em;background:linear-gradient(90deg,var(--acc),var(--acc2));-webkit-background-clip:text;background-clip:text;color:transparent;white-space:nowrap}
+#topbar nav{display:flex;gap:4px;overflow-x:auto;flex:1;scrollbar-width:none}
+#topbar nav a{color:var(--muted);text-decoration:none;font-size:.85rem;padding:4px 10px;border-radius:999px;white-space:nowrap}
+#topbar nav a:hover{background:var(--accbg);color:var(--fg)}
+#topbar nav a.active{background:var(--accbg);color:var(--fg);box-shadow:inset 0 -2px 0 var(--acc)}
+html{scroll-behavior:smooth}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+@keyframes arrive{0%{text-shadow:0 0 0 transparent}30%{text-shadow:0 0 18px var(--acc)}100%{text-shadow:0 0 0 transparent}}
+@keyframes arriveN{0%{transform:scale(1)}30%{transform:scale(1.25) rotate(-6deg)}100%{transform:scale(1)}}
+h2.arrive{animation:arrive 1.2s ease-out}h2.arrive .n{animation:arriveN .9s ease-out}
+.tbtn{border:1px solid var(--line);background:var(--glass);color:var(--fg);border-radius:999px;padding:4px 11px;font:inherit;font-size:.8rem;cursor:pointer;white-space:nowrap}
+.tbtn:hover{border-color:var(--acc)}
+#progress{position:absolute;left:0;bottom:-1px;height:3px;width:100%;transform-origin:0 50%;transform:scaleX(0);background:linear-gradient(90deg,var(--acc),var(--acc2),var(--acc3))}
+@media (max-width:700px){#topbar nav{display:none}}
 h1,h2,h3{font-family:var(--hfont)}
 body.technical h1{letter-spacing:-.02em}
 main{max-width:1180px;margin:0 auto;padding:20px 16px 60px}
-h1{font-size:1.75rem;line-height:1.2;margin:.2em 0}
-h2{font-size:1.2rem;margin:1.8em 0 .6em;padding-bottom:.25em;border-bottom:2px solid var(--line)}
+h2,section,#lab{scroll-margin-top:64px}
+h1{font-size:clamp(1.7rem,3.6vw,2.6rem);line-height:1.12;margin:.15em 0;background:linear-gradient(95deg,var(--acc) 10%,var(--acc2) 60%,var(--acc3));-webkit-background-clip:text;background-clip:text;color:transparent}
+h2{font-size:1.25rem;margin:2em 0 .7em;display:flex;align-items:center;gap:10px}
+h2::after{content:"";flex:1;height:2px;border-radius:2px;background:linear-gradient(90deg,var(--acc),transparent)}
+h2 .n{display:inline-grid;place-items:center;width:30px;height:30px;border-radius:9px;color:#fff;font-size:.9rem;background:linear-gradient(135deg,var(--acc),var(--acc2));box-shadow:var(--shadow)}
 h3{font-size:1rem;margin:.1em 0 .4em}
 a{color:var(--acc);overflow-wrap:anywhere}
 .cite{overflow-wrap:anywhere}
@@ -30,7 +58,12 @@ code,.sym,.eqx,.sx,.ex{font-family:"Cambria Math","STIX Two Math","Latin Modern 
 code{background:var(--accbg);padding:0 .3em;border-radius:4px}
 .muted{color:var(--muted)}
 .sub{color:var(--muted);margin:.2em 0 .4em;font-size:1.05rem}
-.hero{display:grid;grid-template-columns:1fr 230px;gap:18px;align-items:center;background:var(--band);border-radius:14px;padding:16px 20px;margin-bottom:6px}
+.hero{display:grid;grid-template-columns:1fr 250px;gap:22px;align-items:center;background:var(--glass);backdrop-filter:blur(16px) saturate(150%);-webkit-backdrop-filter:blur(16px) saturate(150%);border:1px solid var(--line);border-radius:22px;padding:26px 28px;margin:10px 0 8px;box-shadow:var(--shadow);position:relative;overflow:hidden}
+.hero::before{content:"";position:absolute;inset:-40%;background:conic-gradient(from 0deg,var(--g1),var(--g2),var(--g3),var(--g1));filter:blur(60px);opacity:.35;animation:spin 24s linear infinite;z-index:-1}
+@keyframes spin{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.hero::before{animation:none}}
+.palette{display:inline-flex;gap:4px;align-items:center;font-size:.75rem;color:var(--muted);margin-top:8px}
+.palette i{width:14px;height:14px;border-radius:50%;display:inline-block}
 @media (max-width:640px){.hero{grid-template-columns:1fr}.hero .motif{max-width:200px;justify-self:center}}
 .motif{width:100%;height:auto;display:block}
 .motif .f{fill:var(--acc)}.motif .f2{fill:var(--s2)}.motif .fl{fill:var(--card);stroke:var(--line)}
@@ -39,21 +72,26 @@ code{background:var(--accbg);padding:0 .3em;border-radius:4px}
 #figs{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px;margin-top:14px}
 #figs:empty{display:none}
 .pfig{margin:0}.pfig img{max-width:100%;max-height:340px;display:block;margin:0 auto;background:#fff;border-radius:6px}
+.pfig img{cursor:zoom-in;max-height:300px}
+.lightbox{position:fixed;inset:0;z-index:50;background:rgba(0,0,0,.78);display:grid;place-items:center;cursor:zoom-out;padding:3vw}
+.lightbox img{max-width:94vw;max-height:90vh;background:#fff;border-radius:8px;box-shadow:0 20px 60px rgba(0,0,0,.5)}
 .pfig figcaption{font-size:.85rem;color:var(--muted);margin-top:6px}
 .cite{font-size:.88rem;color:var(--muted)}
-.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px 16px}
+.card{background:var(--glass);backdrop-filter:blur(14px) saturate(150%);-webkit-backdrop-filter:blur(14px) saturate(150%);border:1px solid var(--line);border-radius:16px;padding:16px 18px;box-shadow:var(--shadow)}
 .grid4{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-top:14px}
 .q h3{color:var(--acc)}
 .q p{margin:0}
-#first{margin-top:14px;background:var(--accbg);border:1px solid var(--acc);border-radius:10px;padding:12px 16px;display:flex;gap:16px;align-items:center;flex-wrap:wrap}
+#first{margin-top:14px;background:linear-gradient(120deg,var(--accbg),hsla(var(--h2),80%,60%,.12));backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid var(--acc);border-radius:16px;box-shadow:var(--shadow);padding:12px 16px;display:flex;gap:16px;align-items:center;flex-wrap:wrap}
 #first .tw{flex:1 1 400px}
-.btn{background:var(--acc);color:#fff;border:0;border-radius:8px;padding:8px 14px;font:inherit;font-weight:600;cursor:pointer}
+.btn{background:linear-gradient(135deg,var(--acc),var(--acc2));color:#fff;border:0;border-radius:10px;padding:9px 16px;font:inherit;font-weight:650;cursor:pointer;box-shadow:0 4px 14px hsla(var(--h),70%,40%,.3);transition:transform .15s,box-shadow .15s}
+.btn:hover{transform:translateY(-1px);box-shadow:0 6px 20px hsla(var(--h),70%,40%,.4)}
+:root[data-theme=dark] .btn,:root:not([data-theme=light]) .btn{color:#fff}
 .btn.ghost{background:transparent;color:var(--acc);border:1px solid var(--acc)}
 .btn.warn{background:var(--toy)}
 .btn:focus-visible,.stage:focus-visible{outline:3px solid var(--hot);outline-offset:2px}
 #lab{display:grid;grid-template-columns:330px 1fr;gap:16px;align-items:start;scroll-margin-top:10px}
 @media (max-width:860px){#lab{grid-template-columns:1fr}}
-#ctrlpane{position:sticky;top:10px;max-height:calc(100vh - 20px);overflow:auto}
+#ctrlpane{position:sticky;top:62px;max-height:calc(100vh - 74px);overflow:auto}
 .ctrl{padding:10px 0;border-bottom:1px solid var(--line)}
 .ctrl:last-child{border-bottom:0}
 .cl{display:flex;justify-content:space-between;gap:8px;font-weight:600}
@@ -62,21 +100,22 @@ code{background:var(--accbg);padding:0 .3em;border-radius:4px}
 .cd{font-size:.83rem;color:var(--muted);margin-top:4px}
 input[type=range]{width:100%;accent-color:var(--acc)}
 .range{display:flex;justify-content:space-between;font-size:.75rem;color:var(--muted)}
-select{width:100%;padding:6px;font:inherit;margin-top:4px;background:var(--card);color:var(--fg);border:1px solid var(--line);border-radius:6px}
+select{width:100%;padding:6px;font:inherit;margin-top:4px;background:var(--glass);color:var(--fg);border:1px solid var(--line);border-radius:6px}
 .vrow{display:grid;grid-template-columns:minmax(28px,auto) 1fr 70px;gap:6px;align-items:center}
 .vl{font-size:.85rem}
-input.num,.mat input{width:100%;padding:3px 4px;font:inherit;font-size:.9rem;background:var(--card);color:var(--fg);border:1px solid var(--line);border-radius:5px}
+input.num,.mat input{width:100%;padding:3px 4px;font:inherit;font-size:.9rem;background:var(--glass);color:var(--fg);border:1px solid var(--line);border-radius:5px}
 .mat{border-collapse:collapse;margin-top:6px}
 .mat th{font-weight:500;font-size:.8rem;color:var(--muted);padding:2px 4px}
 .mat td{padding:2px}
 .mat input{width:62px}
 #mechmap{display:flex;flex-wrap:wrap;align-items:stretch;gap:6px}
-.stage{background:var(--card);border:1.5px solid var(--line);border-radius:9px;padding:6px 10px;cursor:pointer;text-align:left;color:var(--fg);font:inherit;min-width:90px}
+.stage{background:var(--glass);border:1.5px solid var(--line);border-radius:12px;transition:transform .15s,border-color .15s;padding:6px 10px;cursor:pointer;text-align:left;color:var(--fg);font:inherit;min-width:90px}
 .stage .sl{font-weight:650;font-size:.88rem}
 .stage .sx{font-size:.85rem;color:var(--muted)}
-.stage.sel{border-color:var(--acc);box-shadow:0 0 0 2px var(--accbg)}
+.stage.sel{border-color:var(--acc);box-shadow:0 0 0 3px var(--accbg)}
+.stage:hover{transform:translateY(-2px);border-color:var(--acc2)}
 .arrow{align-self:center;color:var(--muted);font-weight:700}
-@keyframes hot{0%{background:var(--hot)}100%{background:var(--card)}}
+@keyframes hot{0%{box-shadow:0 0 0 3px var(--hot),0 0 28px var(--hot)}100%{box-shadow:var(--shadow)}}
 .stage.hot,.view.hot{animation:hot 1.2s ease-out}
 #inspect{margin-top:10px;font-size:.9rem}
 #inspect p{margin:.3em 0}
@@ -85,9 +124,10 @@ input.num,.mat input{width:100%;padding:3px 4px;font:inherit;font-size:.9rem;bac
 table.mini{border-collapse:collapse;display:inline-table;vertical-align:middle}
 table.mini td{border:1px solid var(--line);padding:1px 6px;font-size:.85rem}
 #readouts{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin:12px 0}
-.ro{background:var(--card);border:1px solid var(--line);border-radius:9px;padding:8px 10px}
+.ro{background:var(--glass);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid var(--line);border-radius:14px;padding:10px 12px;box-shadow:var(--shadow);position:relative;overflow:hidden}
+.ro::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:linear-gradient(var(--acc),var(--acc2))}
 .ro .rk{font-size:.8rem;color:var(--muted)}
-.ro .rv{font-size:1.25rem;font-weight:700;font-variant-numeric:tabular-nums;overflow-x:auto}
+.ro .rv{font-size:1.45rem;font-weight:700;font-variant-numeric:tabular-nums;overflow-x:auto}
 .ro .u{font-size:.8rem;font-weight:500;color:var(--muted)}
 .ro.flash{animation:hot 1.2s ease-out}
 #views{display:grid;grid-template-columns:repeat(auto-fit,minmax(520px,1fr));gap:12px}
@@ -106,19 +146,19 @@ table.mini td{border:1px solid var(--line);padding:1px 6px;font-size:.85rem}
 .bv{font-size:11px;font-variant-numeric:tabular-nums}
 .bar.hl{stroke:var(--fg);stroke-width:2}
 .ln{fill:none;stroke-width:2.5}
-.pt{fill:var(--s2);stroke:var(--card);stroke-width:2}
+.pt{fill:var(--s2);stroke:var(--card);stroke-width:2;filter:drop-shadow(0 0 4px var(--s2))}
 .refl{stroke:var(--muted);stroke-dasharray:5 4}
 .rl{font-size:11px}
 .seg{stroke:var(--muted);stroke-width:1.5;stroke-dasharray:4 3}
 .legend{display:flex;gap:14px;flex-wrap:wrap;font-size:.82rem;margin-top:4px}
 .legend i{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:4px;vertical-align:-1px}
-table.heat,table.dt{border-collapse:collapse;margin:4px auto;font-variant-numeric:tabular-nums}
+table.heat,table.dt{border-collapse:separate;border-spacing:3px;margin:4px auto;font-variant-numeric:tabular-nums}
 .heat th,.dt th{font-size:.82rem;font-weight:600;padding:4px 8px;color:var(--muted)}
-.heat td{min-width:58px;text-align:center;padding:8px 6px;border:1px solid var(--card);font-size:.92rem}
+.heat td{min-width:58px;text-align:center;padding:8px 6px;border:2px solid transparent;border-radius:6px;font-size:.92rem}
 .heat td.rs{background:transparent!important;color:var(--muted)!important;font-size:.82rem}
 .dt td{border-top:1px solid var(--line);padding:4px 10px;text-align:right}
 .dt tr.tot td{font-weight:700;border-top:2px solid var(--fg)}
-#why{background:var(--card);border-left:4px solid var(--hot);border-radius:8px;padding:10px 14px;margin-top:12px;font-size:.92rem}
+#why{background:var(--glass);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid var(--line);border-left:4px solid var(--acc2);border-radius:14px;box-shadow:var(--shadow);padding:10px 14px;margin-top:12px;font-size:.92rem}
 #why p{margin:.3em 0}
 .chain span{display:inline-block;background:var(--accbg);border-radius:6px;padding:1px 7px;margin:2px 0}
 .deltas{margin:.3em 0;padding-left:1.2em}
@@ -128,7 +168,7 @@ table.heat,table.dt{border-collapse:collapse;margin:4px auto;font-variant-numeri
 table.sy{border-collapse:collapse;width:100%}
 .sy td{border-bottom:1px solid var(--line);padding:6px 8px;vertical-align:top}
 .sy td.sym{font-size:1.1rem;white-space:nowrap;width:1%}
-.eq{border-left:3px solid var(--paper);padding:6px 12px;margin:8px 0;background:var(--card);border-radius:0 8px 8px 0}
+.eq{border-left:3px solid var(--acc);padding:8px 14px;margin:8px 0;background:var(--accbg);border-radius:0 8px 8px 0}
 .eqx{font-size:1.15rem;overflow-x:auto}
 .eqm{font-size:.85rem}
 .two{display:grid;grid-template-columns:1fr 1fr;gap:14px}
@@ -144,7 +184,7 @@ details summary{cursor:pointer;color:var(--acc);font-weight:600}
 #livechecks{list-style:none;padding:0;margin:.4em 0}
 #livechecks li.ok{color:var(--ok)}#livechecks li.bad{color:var(--bad);font-weight:700}
 .err,#runerr{color:var(--bad);font-weight:600}
-#runerr{display:none;background:var(--card);border:1px solid var(--bad);padding:8px;border-radius:8px;margin-bottom:8px}
+#runerr{display:none;background:var(--glass);border:1px solid var(--bad);padding:8px;border-radius:8px;margin-bottom:8px}
 .labhead{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:4px}
 .sv{margin-top:3px;min-height:4px;display:flex;gap:6px;align-items:center}
 .spark{display:block}
@@ -157,7 +197,15 @@ details summary{cursor:pointer;color:var(--acc);font-weight:600}
 footer{margin-top:40px;font-size:.8rem;color:var(--muted)}
 </style>
 </head>
-<body class="technical">
+<body class="classic">
+<canvas id="bg" aria-hidden="true"></canvas>
+<div id="topbar">
+  <span class="brand">Journalio</span>
+  <nav aria-label="Sections"><a href="#s-mech">Mechanism</a><a href="#lab">Lab</a><a href="#s-notation">Notation</a><a href="#s-explore">Explore</a><a href="#s-limit">Limitation</a><a href="#s-sources">Sources</a><a href="#s-checks">Checks</a></nav>
+  <button class="tbtn" id="motionBtn" type="button" title="Pause or resume the animated background">Motion</button>
+  <button class="tbtn" id="themeBtn" type="button" title="Switch light / dark / automatic">◐ Auto</button>
+  <div id="progress"></div>
+</div>
 <main>
 <header>
  <div class="hero">
@@ -165,6 +213,7 @@ footer{margin-top:40px;font-size:.8rem;color:var(--muted)}
   <h1 id="title"></h1>
   <div class="sub" id="subtitle"></div>
   <div class="cite" id="cite"></div>
+  <div class="palette" title="Theme palette chosen for this topic"><i style="background:var(--acc)"></i><i style="background:var(--acc2)"></i><i style="background:var(--acc3)"></i>&nbsp;Neon synapse palette · drag or click the background</div>
   </div>
   <svg class="motif" viewBox="0 0 240 140" role="img" aria-label="decorative network illustration"><defs><marker id="mh" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0L10,5L0,10z" fill="var(--acc)"/></marker><marker id="mh2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0L10,5L0,10z" fill="var(--s2)"/></marker></defs><line x1="40" y1="35" x2="120" y2="30" class="m"/><line x1="40" y1="35" x2="120" y2="57" class="m"/><line x1="40" y1="35" x2="120" y2="84" class="m"/><line x1="40" y1="35" x2="120" y2="111" class="m"/><line x1="40" y1="70" x2="120" y2="30" class="m"/><line x1="40" y1="70" x2="120" y2="57" class="m"/><line x1="40" y1="70" x2="120" y2="84" class="m"/><line x1="40" y1="70" x2="120" y2="111" class="m"/><line x1="40" y1="105" x2="120" y2="30" class="m"/><line x1="40" y1="105" x2="120" y2="57" class="m"/><line x1="40" y1="105" x2="120" y2="84" class="m"/><line x1="40" y1="105" x2="120" y2="111" class="m"/><line x1="120" y1="30" x2="200" y2="50" class="m"/><line x1="120" y1="30" x2="200" y2="90" class="m"/><line x1="120" y1="57" x2="200" y2="50" class="m"/><line x1="120" y1="57" x2="200" y2="90" class="m"/><line x1="120" y1="84" x2="200" y2="50" class="m"/><line x1="120" y1="84" x2="200" y2="90" class="m"/><line x1="120" y1="111" x2="200" y2="50" class="m"/><line x1="120" y1="111" x2="200" y2="90" class="m"/><circle cx="40" cy="35" r="10" class="f"/><circle cx="40" cy="70" r="10" class="f"/><circle cx="40" cy="105" r="10" class="f"/><circle cx="120" cy="30" r="10" class="f2"/><circle cx="120" cy="57" r="10" class="f2"/><circle cx="120" cy="84" r="10" class="f2"/><circle cx="120" cy="111" r="10" class="f2"/><circle cx="200" cy="50" r="10" class="f"/><circle cx="200" cy="90" r="10" class="f"/></svg>
  </div>
@@ -178,10 +227,10 @@ footer{margin-top:40px;font-size:.8rem;color:var(--muted)}
 <section id="figs" aria-label="Figures from the paper"></section>
 <div id="first"></div>
 
-<h2>1 · The mechanism, step by step</h2>
+<h2 id="s-mech"><span class="n">1</span>The mechanism, step by step</h2>
 <div class="card"><div id="mechmap" aria-label="Mechanism map: click a stage to inspect it"></div><div id="inspect"></div></div>
 
-<h2>2 · Laboratory <span class="muted" style="font-size:.85rem;font-weight:400">— change the inputs, watch every downstream quantity update</span></h2>
+<h2 id="s-lab"><span class="n">2</span>Laboratory <span class="muted" style="font-size:.85rem;font-weight:400">— change the inputs, watch every downstream quantity update</span></h2>
 <div id="lab">
   <aside class="card" id="ctrlpane" aria-label="Controls">
     <div class="labhead"><b>Controls</b><button class="btn ghost" id="reset">Reset</button></div>
@@ -195,33 +244,33 @@ footer{margin-top:40px;font-size:.8rem;color:var(--muted)}
   </section>
 </div>
 
-<h2>3 · Notation and equations</h2>
+<h2 id="s-notation"><span class="n">3</span>Notation and equations</h2>
 <div class="two">
   <div class="card"><h3>Symbols</h3><table class="sy"><tbody id="symbols"></tbody></table></div>
   <div class="card"><h3>Equations</h3><div id="equations"></div></div>
 </div>
 
-<h2>4 · Guided explorations</h2>
+<h2 id="s-explore"><span class="n">4</span>Guided explorations</h2>
 <div class="two" id="explorations"></div>
 
-<h2>5 · Limitation lab</h2>
+<h2 id="s-limit"><span class="n">5</span>Limitation lab</h2>
 <div class="card" id="limitation"></div>
 
-<h2>6 · Source grounding</h2>
+<h2 id="s-sources"><span class="n">6</span>Source grounding</h2>
 <div class="card">
   <ul id="claims"></ul>
   <div id="scope" class="muted" style="font-size:.9rem"></div>
 </div>
 
-<h2>7 · Checks <span id="checkbadge" class="badge"></span></h2>
+<h2 id="s-checks"><span class="n">7</span>Checks <span id="checkbadge" class="badge"></span></h2>
 <div class="two">
   <div class="card"><h3>Live invariants (current inputs)</h3><ul id="livechecks"></ul></div>
   <div class="card"><h3>How this page was verified</h3><div id="buildinfo"></div></div>
 </div>
 <footer>Generated by Journalio (Paper → Playground agent). All numbers on this page are computed live in your browser from the current inputs; the toy values are teaching examples, not experimental results from the paper. Works offline.</footer>
 </main>
-<script type="application/json" id="spec-data">{"title": "PageRank: rank flows along links", "paper": {"title": "The PageRank Citation Ranking: Bringing Order to the Web", "authors": "Page, Brin, Motwani, Winograd", "year": "1998", "section": "2.1.1", "url": "http://infolab.stanford.edu/~backrub/google.html"}, "theme": {"hue": 210, "motif": "network", "style": "technical"}, "symbols": [{"sym": "PR(A)", "meaning": "PageRank of page A", "tag": "PAPER"}, {"sym": "d", "meaning": "damping factor, usually 0.85", "tag": "PAPER"}, {"sym": "C(A)", "meaning": "number of links out of A", "tag": "PAPER"}, {"sym": "T<sub>1<\/sub>…T<sub>n<\/sub>", "meaning": "pages pointing to A", "tag": "PAPER"}, {"sym": "r", "meaning": "rank vector over the 4 pages", "tag": "DERIVED"}, {"sym": "M", "meaning": "normalized link matrix", "tag": "DERIVED"}], "equations": [{"expr": "PR(A) = (1 − d) + d · Σ<sub>i<\/sub> PR(T<sub>i<\/sub>)/C(T<sub>i<\/sub>)", "ref": "2.1.1", "tag": "PAPER"}, {"expr": "r<sup>(k+1)<\/sup> = (1 − d)/N · 1 + d · M<sup>T<\/sup> r<sup>(k)<\/sup>", "ref": "normalized form", "tag": "DERIVED"}, {"expr": "Σ<sub>A<\/sub> PR(A) = 1", "ref": "2.1.1", "tag": "PAPER"}], "stages": [{"id": "links", "label": "Link matrix", "expr": "M<sub>ij<\/sub> = 1/C(i) if i→j else 0", "keys": ["M"]}, {"id": "step", "label": "One iteration", "expr": "r ← (1−d)/N + d·M<sup>T<\/sup>r", "keys": ["r", "history"]}, {"id": "conv", "label": "Converged ranks", "expr": "r<sup>(k)<\/sup> until change < 1e−9", "keys": ["r"]}], "controls": [{"id": "d", "type": "slider", "label": "Damping factor d", "min": 0, "max": 1, "step": 0.01, "default": 0.85, "effect": "Weight on link-following vs. uniform random jump"}, {"id": "iters", "type": "slider", "label": "Iterations", "min": 1, "max": 30, "step": 1, "default": 8, "effect": "How many power-iteration steps to show"}, {"id": "links", "type": "matrix", "label": "Adjacency (row links to column)", "min": 0, "max": 1, "step": 1, "default": [[0, 1, 1, 0], [0, 0, 1, 0], [1, 0, 0, 1], [0, 0, 1, 0]], "row_labels": ["A", "B", "C", "D"], "col_labels": ["A", "B", "C", "D"], "effect": "Which pages link to which; changes M and all ranks"}], "compute": "const N=4,names=['A','B','C','D'];\nconst L=inp.links.map(r=>r.map(v=>v?1:0));\nconst M=L.map(row=>{const s=row.reduce((a,b)=>a+b,0);return s?row.map(v=>v/s):row.map(()=>1/N);});\nconst d=inp.d;\nlet r=Array(N).fill(1/N);\nconst history=[r.slice()];\nfor(let k=0;k<inp.iters;k++){\n  const nr=Array(N).fill((1-d)/N);\n  for(let i=0;i<N;i++)for(let j=0;j<N;j++)nr[j]+=d*r[i]*M[i][j];\n  r=nr;history.push(r.slice());\n}\nlet conv=Array(N).fill(1/N);\nfor(let k=0;k<500;k++){\n  const nr=Array(N).fill((1-d)/N);\n  for(let i=0;i<N;i++)for(let j=0;j<N;j++)nr[j]+=d*conv[i]*M[i][j];\n  const diff=nr.reduce((a,v,i)=>a+Math.abs(v-conv[i]),0);\n  conv=nr;if(diff<1e-12)break;\n}\nconst sum=r.reduce((a,b)=>a+b,0);\nconst sweepD=[],sweepR=[];\nfor(let t=0;t<=20;t++){\n  const dd=t/20;let x=Array(N).fill(1/N);\n  for(let k=0;k<200;k++){const nr=Array(N).fill((1-dd)/N);for(let i=0;i<N;i++)for(let j=0;j<N;j++)nr[j]+=dd*x[i]*M[i][j];x=nr;}\n  sweepD.push(dd);sweepR.push(x[0]);\n}\nreturn {M,r,history,conv,sum,sweepD,sweepR,names};", "readouts": [{"key": "sum", "label": "Σ PR", "unit": ""}, {"key": "r", "label": "PR(A)", "unit": ""}], "views": [{"type": "heatmap", "title": "Normalized link matrix M", "key": "M", "row_labels": ["A", "B", "C", "D"], "col_labels": ["A", "B", "C", "D"], "row_sums": true, "stage": "links", "caption": "Each row sums to 1: rank splits equally", "id": "v1"}, {"type": "bars", "title": "Rank after chosen iterations", "key": "r", "labels": ["A", "B", "C", "D"], "ymin": 0, "ymax": 1, "stage": "step", "caption": "Compare with converged ranks", "id": "v2"}, {"type": "line", "title": "PR(A) vs damping d (converged)", "x": "sweepD", "series": [{"key": "sweepR", "label": "PR(A)"}], "xlabel": "d", "ylabel": "PR(A)", "stage": "conv", "caption": "d=0 uniform; d→1 link-driven", "id": "v3"}], "claims": [{"text": "PR(A) = (1−d) + d Σ PR(T<sub>i<\/sub>)/C(T<sub>i<\/sub>), with d usually 0.85.", "tag": "PAPER", "ref": "2.1.1"}, {"text": "PageRanks form a probability distribution: they sum to one.", "tag": "PAPER", "ref": "2.1.1"}, {"text": "PageRank is the principal eigenvector of the normalized link matrix, found by iteration.", "tag": "PAPER", "ref": "2.1.1"}, {"text": "The random surfer follows links with probability d and jumps to a random page with probability 1−d.", "tag": "PAPER", "ref": "2.1.2"}, {"text": "Toy model: 4 pages, uniform jump, dangling pages redistributed uniformly.", "tag": "PLAYGROUND", "ref": ""}], "checks": [{"name": "nonneg", "expr": "out.r.every(v=>v>=-1e-9)"}, {"name": "sums1", "expr": "Math.abs(out.sum-1)<1e-9"}, {"name": "convSums1", "expr": "Math.abs(out.conv.reduce((a,b)=>a+b,0)-1)<1e-9"}, {"name": "rowsStochastic", "expr": "out.M.every(row=>Math.abs(row.reduce((a,b)=>a+b,0)-1)<1e-9)"}], "scope": {"out": "No real web graph, no personalization vector, no convergence-rate analysis, no text relevance."}, "intro": {"what": "Each page splits its rank equally among its outgoing links; a damping factor d mixes in a uniform random jump. Iterating converges to the principal eigenvector.", "why": "Ranks pages by link structure alone, giving a query-independent importance score that search engines can combine with text matching."}, "first_action": {"try": "Leave the default links and d=0.85, iters=8.", "watch": "The bars: A and C collect rank, B and D pass it on.", "why": "Rank flows along links; pages with many incoming links accumulate it.", "preset": {"d": 0.85, "iters": 8, "links": [[0, 1, 1, 0], [0, 0, 1, 0], [1, 0, 0, 1], [0, 0, 1, 0]]}}, "explorations": [{"title": "Symmetric cycle", "change": "Set links to a 4-cycle A→B→C→D→A.", "observe": "All four bars equal 0.25 at every iteration.", "why": "By symmetry each page receives exactly one incoming link, so the uniform vector is the fixed point.", "preset": {}}, {"title": "Hub page", "change": "Make A, B, C all link to D, and D link to A.", "observe": "D's bar dominates; A keeps a small share.", "why": "Many incoming links concentrate rank, but D's single outgoing link returns some to A.", "preset": {}}], "limitation": {"kind": "assumption", "title": "Pages with no outgoing links", "claim": "The formula assumes every page has at least one outgoing link.", "try": "Clear all links out of D (row D all zeros).", "observe": "Ranks still sum to 1; the dead end is treated as linking to all pages.", "explain": "A dangling page has C(A)=0, so PR(T)/C(T) is undefined; the standard fix redistributes its rank uniformly.", "preset": {"d": 0.85, "iters": 8, "links": [[0, 1, 1, 0], [0, 0, 1, 0], [1, 0, 0, 1], [0, 0, 0, 0]]}}}</script>
-<script type="application/json" id="build-data">{"validation": {"ok": true, "errors": [], "states": 60, "checks": ["nonneg", "sums1", "convSums1", "rowsStochastic"], "engine": "mini-racer(V8)"}, "revisions": 0, "model": "deepseek/deepseek-v4.1-flash", "figures": []}</script>
+<script type="application/json" id="spec-data">{"title": "PageRank: rank flows along links", "paper": {"title": "The Anatomy of a Large-Scale Hypertextual Web Search Engine", "authors": "Sergey Brin and Lawrence Page", "year": "1998", "section": "2.1.1", "url": "http://infolab.stanford.edu/~backrub/google.html"}, "theme": {"motif": "network", "style": "classic"}, "symbols": [{"sym": "PR(A)", "meaning": "PageRank of page A", "tag": "PAPER"}, {"sym": "T<sub>1<\/sub>…T<sub>n<\/sub>", "meaning": "pages linking to A", "tag": "PAPER"}, {"sym": "C(A)", "meaning": "number of links out of A", "tag": "PAPER"}, {"sym": "d", "meaning": "damping factor, usually 0.85", "tag": "PAPER"}, {"sym": "M", "meaning": "normalized link matrix, columns sum to 1", "tag": "DERIVED"}, {"sym": "r", "meaning": "rank vector (probability distribution)", "tag": "DERIVED"}], "equations": [{"expr": "PR(A) = (1−d) + d (PR(T<sub>1<\/sub>)/C(T<sub>1<\/sub>) + … + PR(T<sub>n<\/sub>)/C(T<sub>n<\/sub>))", "ref": "2.1.1", "tag": "PAPER"}, {"expr": "r<sub>k+1<\/sub> = (1−d)/N · 1 + d M r<sub>k<\/sub>", "ref": "normalized form", "tag": "DERIVED"}, {"expr": "Σ<sub>A<\/sub> PR(A) = 1", "ref": "2.1.1", "tag": "PAPER"}], "stages": [{"id": "links", "label": "Toggle links", "expr": "M<sub>ij<\/sub> = 1/C(j) if j→i", "keys": ["M"]}, {"id": "iter", "label": "Iterate", "expr": "r<sub>k+1<\/sub> = (1−d)/N + d M r<sub>k<\/sub>", "keys": []}, {"id": "final", "label": "Final ranks", "expr": "r<sub>∞<\/sub>", "keys": ["ranks"]}], "controls": [{"id": "d", "type": "slider", "label": "Damping factor d", "min": 0, "max": 1, "step": 0.01, "default": 0.85, "effect": "Weight on link-following vs uniform jump"}, {"id": "iters", "type": "slider", "label": "Iterations", "min": 1, "max": 30, "step": 1, "default": 10, "effect": "How many rank updates are applied"}, {"id": "links", "type": "matrix", "label": "Link matrix (row = from, col = to)", "min": 0, "max": 1, "step": 1, "default": [[0, 1, 1, 0], [0, 0, 0, 1], [0, 0, 0, 1], [1, 0, 0, 0]], "row_labels": ["A", "B", "C", "D"], "col_labels": ["A", "B", "C", "D"], "effect": "Which pages link to which"}], "compute": "const N=4; const L=inp.links; const d=inp.d; const it=Math.max(1,Math.round(inp.iters));\nconst M=[]; for(let i=0;i<N;i++){M.push(new Array(N).fill(0));}\nfor(let j=0;j<N;j++){let c=0; for(let i=0;i<N;i++){ if(L[i][j]) c++; }\n  if(c>0){ for(let i=0;i<N;i++){ if(L[i][j]) M[i][j]=1/c; } }\n  else { for(let i=0;i<N;i++) M[i][j]=1/N; } }\nlet r=new Array(N).fill(1/N); const history=[r.slice()];\nfor(let k=0;k<it;k++){ const nr=new Array(N).fill((1-d)/N);\n  for(let i=0;i<N;i++){ let s=0; for(let j=0;j<N;j++) s+=M[i][j]*r[j]; nr[i]+=d*s; }\n  r=nr; history.push(r.slice()); }\nconst sum=r.reduce((a,b)=>a+b,0);\nconst norm=r.map(x=>x/sum);\nconst sweep=[]; for(let t=0;t<=100;t++){ const dd=t/100; let rr=new Array(N).fill(1/N);\n  for(let k=0;k<it;k++){ const nr=new Array(N).fill((1-dd)/N);\n    for(let i=0;i<N;i++){ let s=0; for(let j=0;j<N;j++) s+=M[i][j]*rr[j]; nr[i]+=dd*s; } rr=nr; }\n  sweep.push([dd,rr[0],rr[1],rr[2],rr[3]]); }\nreturn {ranks:r, norm:norm, history:history, M:M, sweep:sweep, sum:sum};", "readouts": [{"key": "sum", "label": "Sum of ranks", "unit": ""}], "views": [{"type": "heatmap", "title": "Normalized link matrix M", "key": "M", "row_labels": ["A", "B", "C", "D"], "col_labels": ["A", "B", "C", "D"], "caption": "Column j splits 1/C(j) to each outlink", "id": "v1"}, {"type": "bars", "title": "Rank vector after iterations", "key": "ranks", "labels": ["A", "B", "C", "D"], "ymin": 0, "ymax": 1, "caption": "Watch ranks redistribute toward linked pages", "id": "v2"}], "claims": [{"text": "PageRank normalizes by the number of links on a page.", "tag": "PAPER", "ref": "2.1.1"}, {"text": "The PageRanks form a probability distribution, so they sum to one.", "tag": "PAPER", "ref": "2.1.1"}, {"text": "PageRank corresponds to the principal eigenvector of the normalized link matrix.", "tag": "PAPER", "ref": "2.1.1"}, {"text": "This lab uses a 4-page toy web and uniform redistribution for dangling pages.", "tag": "PLAYGROUND", "ref": ""}], "checks": [{"name": "nonneg", "expr": "out.ranks.every(x=>x>=-1e-9)"}, {"name": "sumone", "expr": "Math.abs(out.sum-1)<1e-9"}, {"name": "normsum", "expr": "Math.abs(out.norm.reduce((a,b)=>a+b,0)-1)<1e-9"}, {"name": "finite", "expr": "out.ranks.every(x=>isFinite(x))"}], "scope": {"out": "Real web scale, convergence proofs, personalization, and dangling-page handling details are omitted."}, "intro": {"what": "Each page splits its rank equally among its outgoing links; a damping factor d mixes this with a uniform jump, giving a rank distribution over pages.", "why": "Ranks pages by link importance, not just text, so search results can be prioritized by citation structure."}, "first_action": {"try": "Set d=0.85, 10 iterations, default links.", "watch": "Ranks settle near 0.37, 0.20, 0.20, 0.20.", "why": "D links to A, so A collects rank from three pages.", "preset": {"d": 0.85, "iters": 10, "links": [[0, 1, 1, 0], [0, 0, 0, 1], [0, 0, 0, 1], [1, 0, 0, 0]]}}, "explorations": [{"title": "Symmetric cycle", "change": "Make every page link to exactly one next page in a 4-cycle.", "observe": "All four ranks stay equal at 0.25.", "why": "With a symmetric link pattern, no page is more cited, so the distribution is uniform.", "preset": {}}, {"title": "Star: everyone links to A", "change": "Set B, C, D all link to A and A links to B.", "observe": "A's rank rises sharply; B, C, D fall.", "why": "A page with many incoming links accumulates rank, matching the citation intuition.", "preset": {}}], "limitation": {"kind": "misconception", "title": "Dangling pages", "claim": "A page with no outgoing links still passes rank along.", "try": "Clear all outgoing links from D.", "observe": "D's rank is redistributed uniformly instead of vanishing.", "explain": "The paper's formula assumes C(A)>0; with no outlinks, rank must be handled separately or it leaks.", "preset": {"d": 0.85, "iters": 10, "links": [[0, 1, 1, 0], [0, 0, 0, 1], [0, 0, 0, 1], [0, 0, 0, 0]]}}}</script>
+<script type="application/json" id="build-data">{"validation": {"ok": true, "errors": [], "states": 60, "checks": ["nonneg", "sumone", "normsum", "finite"], "engine": "mini-racer(V8)"}, "revisions": 0, "model": "deepseek/deepseek-v4.1-flash", "figures": []}</script>
 <script>/* Journalio core: shared by the browser runtime AND the build-time validator.
    Pure functions only (no DOM). */
 var JCore = (function () {
@@ -318,12 +367,12 @@ var JCore = (function () {
     var bodies = [];
     if (FN_RE.test(src)) bodies.push("var __f = (" + src + ");\nreturn __f(" + args.join(", ") + ");");
     bodies.push(src);
-    var firstErr = null;
+    var firstErr = null, lastErr = null;
     for (var i = 0; i < bodies.length; i++) {
       try { return new Function(args.join(","), '"use strict";\n' + bodies[i]); }
-      catch (e) { if (!firstErr) firstErr = e; }
+      catch (e) { if (!firstErr) firstErr = e; lastErr = e; }
     }
-    errors.push(label + ": syntax error: " + (firstErr && firstErr.message));
+    errors.push(label + ": syntax error: " + (lastErr && lastErr.message) + (bodies.length > 1 && firstErr !== lastErr ? " (as function: " + firstErr.message + ")" : ""));
     return null;
   }
 
@@ -440,6 +489,442 @@ var JCore = (function () {
   };
 })();
 </script>
+<script>/* Journalio interactive background + page chrome (theme toggle, motion toggle, scroll progress).
+   One generative animation per topic family, drawn in the paper's palette. Reacts to the pointer,
+   to clicks, and pulses whenever the lab recomputes (JBG.pulse). Respects prefers-reduced-motion,
+   pauses in background tabs, caps resolution. No libraries, no network. */
+var JBG = (function () {
+  "use strict";
+  var root = document.documentElement;
+  var cv = document.getElementById("bg");
+  if (!cv || !cv.getContext) return { pulse: function () {} };
+  var ctx = cv.getContext("2d");
+  var engineName = root.getAttribute("data-engine") || "network";
+  var W = 0, H = 0, DPR = 1, t = 0, last = 0, energy = 0, raf = null;
+  var mouse = { x: -1e4, y: -1e4, on: false, vx: 0, vy: 0 };
+  var reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  var motion = !reduce;
+  var HUES = [0, 0, 0], dark = false;
+
+  function readTheme() {
+    var cs = getComputedStyle(root);
+    HUES = [parseFloat(cs.getPropertyValue("--h")) || 220, parseFloat(cs.getPropertyValue("--h2")) || 280, parseFloat(cs.getPropertyValue("--h3")) || 180];
+    dark = cs.getPropertyValue("--is-dark").trim() === "1";
+  }
+  function col(i, a, light) {
+    var h = HUES[((i % 3) + 3) % 3];
+    var l = light !== undefined ? light : (dark ? 64 : 52);
+    return "hsla(" + h + "," + (dark ? 85 : 78) + "%," + l + "%," + a + ")";
+  }
+  function rnd(a, b) { return a + Math.random() * (b - a); }
+  function resize() {
+    DPR = Math.min(window.devicePixelRatio || 1, 1.5);
+    W = window.innerWidth; H = window.innerHeight;
+    cv.width = Math.round(W * DPR); cv.height = Math.round(H * DPR);
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    if (E && E.init) E.init();
+  }
+  function fade(a) { // trail effect on a transparent canvas
+    ctx.globalCompositeOperation = "destination-out";
+    ctx.fillStyle = "rgba(0,0,0," + a + ")";
+    ctx.fillRect(0, 0, W, H);
+    ctx.globalCompositeOperation = "source-over";
+  }
+  function clear() { ctx.clearRect(0, 0, W, H); }
+
+  // ------------------------------------------------------------------ engines
+  var engines = {};
+
+  engines.network = (function () { // nodes + proximity links; cursor attracts and connects
+    var P = [], hex = false;
+    return {
+      init: function () {
+        hex = root.getAttribute("data-motif") === "molecule";
+        var n = Math.round(Math.max(45, Math.min(130, W * H / 8000))); P = [];
+        for (var i = 0; i < n; i++) P.push({ x: rnd(0, W), y: rnd(0, H), vx: rnd(-.3, .3), vy: rnd(-.3, .3), r: rnd(1.5, 3.5), c: i % 3 });
+      },
+      frame: function (dt) {
+        clear();
+        var sp = 1 + energy * 4, R = 130;
+        P.forEach(function (p) {
+          var dx = mouse.x - p.x, dy = mouse.y - p.y, d2 = dx * dx + dy * dy;
+          if (mouse.on && d2 < 200 * 200) { p.vx += dx / 9000; p.vy += dy / 9000; }
+          p.vx *= .99; p.vy *= .99;
+          p.x += p.vx * sp * dt; p.y += p.vy * sp * dt;
+          if (p.x < 0 || p.x > W) p.vx *= -1; if (p.y < 0 || p.y > H) p.vy *= -1;
+        });
+        for (var i = 0; i < P.length; i++) for (var j = i + 1; j < P.length; j++) {
+          var a = P[i], b = P[j], dx = a.x - b.x, dy = a.y - b.y, d = Math.sqrt(dx * dx + dy * dy);
+          if (d < R) { ctx.strokeStyle = col(a.c, (1 - d / R) * .45); ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke(); }
+        }
+        P.forEach(function (p) {
+          var dx = mouse.x - p.x, dy = mouse.y - p.y, d = Math.sqrt(dx * dx + dy * dy);
+          if (mouse.on && d < 180) { ctx.strokeStyle = col(2, (1 - d / 180) * .7); ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(mouse.x, mouse.y); ctx.stroke(); }
+          ctx.fillStyle = col(p.c, .8);
+          if (hex) { ctx.beginPath(); for (var k = 0; k < 6; k++) { var an = k * Math.PI / 3 + t / 3000; ctx.lineTo(p.x + p.r * 2.2 * Math.cos(an), p.y + p.r * 2.2 * Math.sin(an)); } ctx.closePath(); ctx.fill(); }
+          else { ctx.beginPath(); ctx.arc(p.x, p.y, p.r * (1 + energy), 0, 6.283); ctx.fill(); }
+        });
+      }
+    };
+  })();
+
+  engines.waves = (function () { // layered travelling waves; cursor height sets amplitude, x sets frequency
+    return {
+      init: function () {},
+      frame: function () {
+        clear();
+        var amp = 30 + (mouse.on ? (1 - mouse.y / H) * 70 : 25) + energy * 60;
+        var fr = .006 + (mouse.on ? mouse.x / W * .01 : .004);
+        for (var k = 0; k < 6; k++) {
+          ctx.beginPath();
+          var y0 = H * (.25 + k * .11), ph = t / (900 + k * 260) + k;
+          for (var x = 0; x <= W; x += 6) {
+            var y = y0 + Math.sin(x * fr * (1 + k * .18) + ph) * amp * (1 - k * .1) + Math.sin(x * fr * 2.7 - ph * 1.3) * amp * .25;
+            if (x === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+          }
+          ctx.strokeStyle = col(k, .42 - k * .04); ctx.lineWidth = 2.2 - k * .2; ctx.stroke();
+        }
+        for (var s = 0; s < W; s += 48) { // sample points on the first wave
+          var yy = H * .25 + Math.sin(s * fr + t / 900) * amp + Math.sin(s * fr * 2.7 - t / 900 * 1.3) * amp * .25;
+          ctx.fillStyle = col(2, .55); ctx.beginPath(); ctx.arc(s, yy, 2.6, 0, 6.283); ctx.fill();
+        }
+      }
+    };
+  })();
+
+  engines.ripplegrid = (function () { // matrix of cells lit by expanding ripples (cursor, clicks, lab updates)
+    var rip = [], next = 0;
+    return {
+      init: function () {},
+      ripple: function (x, y, s) { rip.push({ x: x, y: y, r: 0, s: s || 1 }); if (rip.length > 14) rip.shift(); },
+      frame: function (dt) {
+        clear();
+        if (t > next) { this.ripple(rnd(0, W), rnd(0, H), .6); next = t + 1800; }
+        if (mouse.on && Math.random() < .06) this.ripple(mouse.x, mouse.y, .8);
+        rip.forEach(function (r) { r.r += dt * .25; }); rip = rip.filter(function (r) { return r.r < Math.max(W, H); });
+        var g = 30;
+        for (var x = g / 2; x < W; x += g) for (var y = g / 2; y < H; y += g) {
+          var v = .05 + .05 * Math.sin(x * .02 + t / 1500) * Math.cos(y * .02 - t / 1700);
+          for (var i = 0; i < rip.length; i++) { var d = Math.abs(Math.hypot(x - rip[i].x, y - rip[i].y) - rip[i].r); if (d < 40) v += (1 - d / 40) * .5 * rip[i].s * (1 - rip[i].r / Math.max(W, H)); }
+          if (v < .03) continue;
+          ctx.fillStyle = col((x / g + y / g) | 0, Math.min(.65, v));
+          ctx.fillRect(x - g * .36, y - g * .36, g * .72, g * .72);
+        }
+      }
+    };
+  })();
+
+  engines.galton = (function () { // balls bounce through pegs and stack into a bell-shaped histogram
+    var balls = [], bins = [], nb = 0;
+    return {
+      init: function () { nb = Math.max(12, Math.round(W / 40)); bins = new Array(nb).fill(0); balls = []; },
+      frame: function (dt) {
+        clear();
+        var src = mouse.on ? mouse.x : W / 2, rate = 1 + energy * 6;
+        for (var k = 0; k < rate; k++) if (balls.length < 220) balls.push({ x: src + rnd(-4, 4), y: -10, vx: 0, vy: rnd(1, 2), c: (Math.random() * 3) | 0 });
+        ctx.fillStyle = col(1, .18);
+        for (var py = 90; py < H * .6; py += 34) for (var px = (py / 34 % 2) * 20; px < W; px += 40) { ctx.beginPath(); ctx.arc(px, py, 2, 0, 6.283); ctx.fill(); }
+        balls.forEach(function (b) {
+          b.vy += .05 * dt / 16; b.y += b.vy * dt / 16; b.x += b.vx * dt / 16;
+          if (b.y < H * .6 && Math.random() < .08) b.vx = (Math.random() < .5 ? -1 : 1) * rnd(.6, 1.4);
+          b.vx *= .96;
+        });
+        balls = balls.filter(function (b) {
+          if (b.y > H - 4) { var i = Math.min(nb - 1, Math.max(0, Math.floor(b.x / W * nb))); bins[i] += 1; return false; }
+          ctx.fillStyle = col(b.c, .75); ctx.beginPath(); ctx.arc(b.x, b.y, 3.2, 0, 6.283); ctx.fill(); return true;
+        });
+        var mx = Math.max.apply(null, bins.concat([1])), bw = W / nb;
+        for (var i = 0; i < nb; i++) {
+          bins[i] *= .9995;
+          var h = bins[i] / mx * H * .32;
+          ctx.fillStyle = col(i, .32); ctx.fillRect(i * bw + 2, H - h, bw - 4, h);
+        }
+      }
+    };
+  })();
+
+  engines.rain = (function () { // streams of bits; brighter near the cursor
+    var cols = [], fs = 16;
+    return {
+      init: function () { cols = []; for (var x = 0; x < W; x += fs * 1.4) cols.push({ x: x, y: rnd(-H, 0), v: rnd(.05, .14), c: (Math.random() * 3) | 0 }); },
+      frame: function (dt) {
+        fade(.12);
+        ctx.font = "600 " + fs + "px ui-monospace,Consolas,monospace";
+        cols.forEach(function (c) {
+          c.y += c.v * dt * (1 + energy * 3);
+          if (c.y > H + 20) { c.y = rnd(-200, 0); c.v = rnd(.05, .14); }
+          var near = mouse.on ? Math.max(0, 1 - Math.hypot(c.x - mouse.x, c.y - mouse.y) / 220) : 0;
+          ctx.fillStyle = col(c.c, .35 + near * .6, dark ? 70 + near * 20 : 45);
+          ctx.fillText(Math.random() < .5 ? "0" : "1", c.x, c.y);
+        });
+      }
+    };
+  })();
+
+  engines.flowfield = (function () { // particles following a smooth vector field; cursor creates a vortex
+    var P = [];
+    function ang(x, y) {
+      var a = Math.sin(x * .004 + t / 4000) * 1.6 + Math.cos(y * .005 - t / 5000) * 1.6;
+      if (mouse.on) { var dx = x - mouse.x, dy = y - mouse.y, d = Math.hypot(dx, dy); if (d < 220) a = a * (d / 220) + (Math.atan2(dy, dx) + 1.9) * (1 - d / 220); }
+      return a;
+    }
+    return {
+      init: function () { P = []; var n = Math.round(Math.min(700, W * H / 2600)); for (var i = 0; i < n; i++) P.push({ x: rnd(0, W), y: rnd(0, H), c: i % 3, life: rnd(50, 300) }); clear(); },
+      frame: function (dt) {
+        fade(.05);
+        var sp = (.9 + energy * 3) * dt / 16;
+        ctx.lineWidth = 1.2;
+        P.forEach(function (p) {
+          var a = ang(p.x, p.y), nx = p.x + Math.cos(a) * sp * 1.6, ny = p.y + Math.sin(a) * sp * 1.6;
+          ctx.strokeStyle = col(p.c, .4); ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(nx, ny); ctx.stroke();
+          p.x = nx; p.y = ny; p.life -= 1;
+          if (p.life < 0 || p.x < 0 || p.x > W || p.y < 0 || p.y > H) { p.x = rnd(0, W); p.y = rnd(0, H); p.life = rnd(80, 300); }
+        });
+      }
+    };
+  })();
+
+  engines.circuit = (function () { // orthogonal traces with travelling current pulses
+    var paths = [], pulses = [];
+    return {
+      init: function () {
+        paths = []; pulses = [];
+        var g = 40, n = Math.round(W * H / 26000);
+        for (var i = 0; i < n; i++) {
+          var x = Math.round(rnd(0, W) / g) * g, y = Math.round(rnd(0, H) / g) * g, pts = [[x, y]], dir = (Math.random() * 4) | 0;
+          for (var k = 0; k < 6; k++) { var L = g * ((rnd(1, 4)) | 0); if (dir === 0) x += L; else if (dir === 1) y += L; else if (dir === 2) x -= L; else y -= L; pts.push([x, y]); dir = (dir + (Math.random() < .5 ? 1 : 3)) % 4; }
+          paths.push({ pts: pts, c: i % 3 });
+        }
+      },
+      spawn: function (near) {
+        var best = paths[(Math.random() * paths.length) | 0];
+        if (near && mouse.on) { var bd = 1e9; paths.forEach(function (p) { var d = Math.hypot(p.pts[0][0] - mouse.x, p.pts[0][1] - mouse.y); if (d < bd) { bd = d; best = p; } }); }
+        if (best) pulses.push({ p: best, s: 0 });
+      },
+      frame: function (dt) {
+        clear();
+        if (Math.random() < .05 + energy * .5) this.spawn(Math.random() < .5);
+        paths.forEach(function (p) {
+          ctx.strokeStyle = col(p.c, .2); ctx.lineWidth = 2; ctx.beginPath();
+          p.pts.forEach(function (q, i) { if (i) ctx.lineTo(q[0], q[1]); else ctx.moveTo(q[0], q[1]); }); ctx.stroke();
+          ctx.fillStyle = col(p.c, .4); ctx.beginPath(); ctx.arc(p.pts[0][0], p.pts[0][1], 3.5, 0, 6.283); ctx.fill();
+        });
+        pulses = pulses.filter(function (u) {
+          u.s += dt * .25;
+          var pts = u.p.pts, rem = u.s;
+          for (var i = 1; i < pts.length; i++) {
+            var L = Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]);
+            if (rem <= L) { var f = rem / L, x = pts[i - 1][0] + (pts[i][0] - pts[i - 1][0]) * f, y = pts[i - 1][1] + (pts[i][1] - pts[i - 1][1]) * f;
+              ctx.fillStyle = col(u.p.c + 1, .9); ctx.shadowColor = col(u.p.c + 1, .9); ctx.shadowBlur = 12; ctx.beginPath(); ctx.arc(x, y, 3.5, 0, 6.283); ctx.fill(); ctx.shadowBlur = 0; return true; }
+            rem -= L;
+          }
+          return false;
+        });
+      }
+    };
+  })();
+
+  engines.orbits = (function () { // particles on elliptical orbits around the centre and the cursor
+    var P = [];
+    return {
+      init: function () { P = []; for (var i = 0; i < 140; i++) P.push({ a: rnd(40, Math.max(W, H) * .55), e: rnd(.25, .65), ph: rnd(0, 6.283), w: rnd(.00008, .0004), tilt: rnd(0, 3.14), c: i % 3, m: Math.random() < .25 }); },
+      frame: function (dt) {
+        fade(.18);
+        var cx = W * .5, cy = H * .45;
+        P.forEach(function (p) {
+          p.ph += p.w * dt * (1 + energy * 4) * (300 / p.a);
+          var ox = p.m && mouse.on ? mouse.x : cx, oy = p.m && mouse.on ? mouse.y : cy, a = p.m ? p.a * .3 : p.a, b = a * p.e;
+          var x = Math.cos(p.ph) * a, y = Math.sin(p.ph) * b, ct = Math.cos(p.tilt), st = Math.sin(p.tilt);
+          ctx.fillStyle = col(p.c, .7); ctx.beginPath(); ctx.arc(ox + x * ct - y * st, oy + x * st + y * ct, p.m ? 2.2 : 1.8, 0, 6.283); ctx.fill();
+        });
+        ctx.fillStyle = col(0, .5); ctx.beginPath(); ctx.arc(cx, cy, 8 + energy * 10, 0, 6.283); ctx.fill();
+      }
+    };
+  })();
+
+  engines.vectors = (function () { // vector field of arrows turning toward the cursor
+    return {
+      init: function () {},
+      frame: function () {
+        clear();
+        var g = 46, tx = mouse.on ? mouse.x : W / 2 + Math.cos(t / 2500) * W * .3, ty = mouse.on ? mouse.y : H / 2 + Math.sin(t / 3100) * H * .3;
+        for (var x = g / 2; x < W; x += g) for (var y = g / 2; y < H; y += g) {
+          var dx = tx - x, dy = ty - y, d = Math.hypot(dx, dy) || 1, a = Math.atan2(dy, dx) + Math.sin(t / 2000 + x * .01) * .3;
+          var L = Math.max(6, Math.min(20, 2600 / d)) * (1 + energy);
+          var c = d < 160 ? 2 : ((x + y) / g | 0) % 2;
+          ctx.strokeStyle = col(c, .22 + Math.min(.5, 60 / d)); ctx.lineWidth = 1.6;
+          var ex = x + Math.cos(a) * L, ey = y + Math.sin(a) * L;
+          ctx.beginPath(); ctx.moveTo(x - Math.cos(a) * L * .4, y - Math.sin(a) * L * .4); ctx.lineTo(ex, ey);
+          ctx.lineTo(ex - Math.cos(a - .5) * 5, ey - Math.sin(a - .5) * 5); ctx.moveTo(ex, ey); ctx.lineTo(ex - Math.cos(a + .5) * 5, ey - Math.sin(a + .5) * 5); ctx.stroke();
+        }
+      }
+    };
+  })();
+
+  engines.life = (function () { // Conway's Game of Life; the cursor paints live cells
+    var g = 14, cw = 0, ch = 0, A = null, age = null, acc = 0;
+    function seed() { for (var i = 0; i < A.length; i++) A[i] = Math.random() < .14 ? 1 : 0; }
+    return {
+      init: function () { cw = Math.ceil(W / g); ch = Math.ceil(H / g); A = new Uint8Array(cw * ch); age = new Uint16Array(cw * ch); seed(); },
+      paint: function (x, y) { var i = Math.floor(x / g), j = Math.floor(y / g); for (var a = -1; a <= 1; a++) for (var b = -1; b <= 1; b++) { var ii = i + a, jj = j + b; if (ii >= 0 && jj >= 0 && ii < cw && jj < ch && Math.random() < .6) A[jj * cw + ii] = 1; } },
+      frame: function (dt) {
+        acc += dt;
+        if (mouse.on) this.paint(mouse.x, mouse.y);
+        if (acc > 130) {
+          acc = 0;
+          var B = new Uint8Array(cw * ch), alive = 0;
+          for (var y = 0; y < ch; y++) for (var x = 0; x < cw; x++) {
+            var n = 0;
+            for (var a = -1; a <= 1; a++) for (var b = -1; b <= 1; b++) if (a || b) n += A[((y + a + ch) % ch) * cw + (x + b + cw) % cw];
+            var i = y * cw + x, v = A[i] ? (n === 2 || n === 3) : n === 3;
+            B[i] = v ? 1 : 0; age[i] = v ? Math.min(age[i] + 1, 60) : 0; alive += B[i];
+          }
+          A = B;
+          if (alive < cw * ch * .02) seed();
+        }
+        clear();
+        for (var k = 0; k < A.length; k++) if (A[k]) { ctx.fillStyle = col(age[k] < 3 ? 2 : age[k] < 12 ? 0 : 1, .5); ctx.fillRect((k % cw) * g + 1, Math.floor(k / cw) * g + 1, g - 2, g - 2); }
+      }
+    };
+  })();
+
+  engines.gears = (function () { // meshing gears; cursor proximity and lab updates speed them up
+    var G = [], spin = 0;
+    function draw(x, y, r, n, a, c) {
+      ctx.beginPath();
+      for (var k = 0; k < n * 2; k++) { var an = a + Math.PI * k / n, rr = k % 2 ? r * .82 : r; ctx.lineTo(x + rr * Math.cos(an - .12), y + rr * Math.sin(an - .12)); ctx.lineTo(x + rr * Math.cos(an + .12), y + rr * Math.sin(an + .12)); }
+      ctx.closePath(); ctx.fillStyle = col(c, .22); ctx.fill(); ctx.strokeStyle = col(c, .5); ctx.lineWidth = 1.5; ctx.stroke();
+      ctx.beginPath(); ctx.arc(x, y, r * .25, 0, 6.283); ctx.strokeStyle = col(c, .6); ctx.stroke();
+    }
+    return {
+      init: function () {
+        G = []; var x = -40, y = H * .35, r = 70, dir = 1;
+        while (x < W + 100) { var n = Math.round(r / 6); G.push({ x: x, y: y, r: r, n: n, dir: dir, c: G.length % 3 }); var r2 = rnd(40, 95); var an = rnd(-.7, .7); x += (r + r2) * .9 * Math.cos(an); y = Math.min(H - 60, Math.max(60, y + (r + r2) * .9 * Math.sin(an))); r = r2; dir *= -1; }
+      },
+      frame: function (dt) {
+        clear();
+        var near = mouse.on ? Math.max(0, 1 - Math.abs(mouse.y - H * .4) / H) : 0;
+        spin += dt * .0004 * (1 + energy * 6 + near * 2);
+        G.forEach(function (g) { draw(g.x, g.y, g.r, g.n, spin * g.dir * 70 / g.r, g.c); });
+      }
+    };
+  })();
+
+  engines.tree = (function () { // recursive branching tree swaying in a cursor-driven wind
+    function br(x, y, len, a, d, wind) {
+      if (d === 0 || len < 4) return;
+      var x2 = x + Math.cos(a) * len, y2 = y + Math.sin(a) * len;
+      ctx.strokeStyle = col(d % 3, .25 + d * .04); ctx.lineWidth = d * .9; ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x2, y2); ctx.stroke();
+      if (d <= 2) { ctx.fillStyle = col(2, .45); ctx.beginPath(); ctx.arc(x2, y2, 2.5, 0, 6.283); ctx.fill(); }
+      var s = .42 + Math.sin(t / 1400 + d) * .05 + wind * .06;
+      br(x2, y2, len * .74, a - s + wind * .12, d - 1, wind);
+      br(x2, y2, len * .74, a + s + wind * .12, d - 1, wind);
+    }
+    return {
+      init: function () {},
+      frame: function () {
+        clear();
+        var wind = (mouse.on ? (mouse.x / W - .5) * 2 : Math.sin(t / 3000)) + energy;
+        [.18, .5, .82].forEach(function (f, i) { br(W * f, H + 10, H * (.17 + .04 * i), -Math.PI / 2, 9, wind); });
+      }
+    };
+  })();
+
+  engines.rays = (function () { // parallel rays refracted by a lens that follows the cursor
+    return {
+      init: function () {},
+      frame: function () {
+        clear();
+        var lx = mouse.on ? mouse.x : W * .5 + Math.sin(t / 3000) * W * .15, cy = H * .5, f = 160 + energy * 120 + (mouse.on ? (mouse.y / H) * 220 : 80);
+        ctx.strokeStyle = col(0, .35); ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.ellipse(lx, cy, 18, H * .36, 0, 0, 6.283); ctx.stroke();
+        for (var k = -9; k <= 9; k++) {
+          var y = cy + k * H * .036, c = (k + 30) % 3;
+          ctx.strokeStyle = col(c, .45); ctx.lineWidth = 1.4; ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(lx, y);
+          var fx = lx + f, ex = W, ey = y + (cy - y) * (ex - lx) / f; ctx.lineTo(ex, ey); ctx.stroke();
+        }
+        ctx.fillStyle = col(2, .8); ctx.beginPath(); ctx.arc(lx + f, cy, 4 + energy * 4, 0, 6.283); ctx.fill();
+      }
+    };
+  })();
+
+  var E = engines[engineName] || engines.network;
+
+  function loop(ts) {
+    var dt = Math.min(50, ts - (last || ts)); last = ts; t += dt;
+    energy *= Math.pow(.96, dt / 16);
+    if (W) E.frame(dt);
+    raf = motion ? requestAnimationFrame(loop) : null;
+  }
+  function start() { if (!raf && motion) { last = 0; raf = requestAnimationFrame(loop); } }
+  function stop() { if (raf) cancelAnimationFrame(raf); raf = null; }
+
+  // ------------------------------------------------------------------ interaction
+  window.addEventListener("pointermove", function (e) { mouse.on = true; mouse.x = e.clientX; mouse.y = e.clientY; }, { passive: true });
+  document.addEventListener("pointerleave", function () { mouse.on = false; });
+  window.addEventListener("pointerdown", function (e) {
+    if (e.target.closest && e.target.closest("button,input,select,a,summary,label,table")) return;
+    energy = Math.min(1.5, energy + .6);
+    if (E.ripple) E.ripple(e.clientX, e.clientY, 1.2);
+    if (E.paint) for (var i = 0; i < 6; i++) E.paint(e.clientX + rnd(-30, 30), e.clientY + rnd(-30, 30));
+    if (E.spawn) for (var k = 0; k < 4; k++) E.spawn(true);
+  });
+  window.addEventListener("resize", function () { resize(); if (!motion) E.frame(16); });
+  document.addEventListener("visibilitychange", function () { if (document.hidden) stop(); else start(); });
+
+  // ------------------------------------------------------------------ chrome: theme + motion toggles, progress bar
+  var themeBtn = document.getElementById("themeBtn"), motionBtn = document.getElementById("motionBtn");
+  var modes = ["auto", "light", "dark"], mode = 0;
+  function applyTheme() {
+    if (modes[mode] === "auto") root.removeAttribute("data-theme"); else root.setAttribute("data-theme", modes[mode]);
+    if (themeBtn) themeBtn.textContent = { auto: "◐ Auto", light: "☀ Light", dark: "☾ Dark" }[modes[mode]];
+    readTheme(); if (!motion) { E.init && E.init(); for (var i = 0; i < 40; i++) E.frame(16); }
+  }
+  if (themeBtn) themeBtn.addEventListener("click", function () { mode = (mode + 1) % 3; applyTheme(); });
+  if (motionBtn) {
+    motionBtn.textContent = motion ? "❚❚ Motion" : "▶ Motion";
+    motionBtn.addEventListener("click", function () { motion = !motion; motionBtn.textContent = motion ? "❚❚ Motion" : "▶ Motion"; if (motion) start(); else stop(); });
+  }
+  if (window.matchMedia) { var mq = window.matchMedia("(prefers-color-scheme: dark)"); if (mq.addEventListener) mq.addEventListener("change", readTheme); }
+  // smooth section navigation + scroll-spy (no content is ever hidden, so full-page screenshots stay complete)
+  var links = [].slice.call(document.querySelectorAll("#topbar nav a"));
+  function arrive(el) {
+    var h = el.tagName === "H2" ? el : (el.previousElementSibling && el.previousElementSibling.tagName === "H2" ? el.previousElementSibling : el.querySelector("h2"));
+    if (!h) return;
+    h.classList.remove("arrive"); void h.offsetWidth; h.classList.add("arrive");
+  }
+  links.forEach(function (a) {
+    a.addEventListener("click", function (e) {
+      var id = a.getAttribute("href").slice(1), el = document.getElementById(id);
+      if (!el) return;
+      e.preventDefault();
+      el.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" });
+      if (history.replaceState) history.replaceState(null, "", "#" + id);
+      setTimeout(function () { arrive(el); }, reduce ? 0 : 450);
+    });
+  });
+  function spy() {
+    var y = 90, cur = null;
+    links.forEach(function (a) { var el = document.getElementById(a.getAttribute("href").slice(1)); if (el && el.getBoundingClientRect().top <= y) cur = a; });
+    links.forEach(function (a) { a.classList.toggle("active", a === cur); });
+  }
+  window.addEventListener("scroll", spy, { passive: true });
+  spy();
+  var bar = document.getElementById("progress");
+  window.addEventListener("scroll", function () {
+    var h = document.documentElement.scrollHeight - innerHeight;
+    if (bar) bar.style.transform = "scaleX(" + (h > 0 ? scrollY / h : 0) + ")";
+  }, { passive: true });
+
+  readTheme(); resize();
+  if (motion) start(); else for (var i = 0; i < 60; i++) E.frame(16); // reduced motion: one settled still frame
+
+  return {
+    pulse: function (s) { energy = Math.min(1.5, energy + (s || .5)); if (E.ripple) E.ripple(W * rnd(.3, .7), H * rnd(.3, .7), 1); if (E.spawn) E.spawn(false); if (!motion) E.frame(16); },
+    engine: engineName
+  };
+})();
+</script>
 <script>/* Journalio runtime: renders a validated spec into an interactive lab. No network, no libraries. */
 (function () {
   "use strict";
@@ -467,7 +952,7 @@ var JCore = (function () {
   var ALLOWED = /&lt;(\/?)(sub|sup|b|i|em|strong|code|br|u|small)\s*\/?&gt;/g;
   function rich(s) {
     if (s === undefined || s === null) return "";
-    s = String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+    s = String(s).replace(/&(?!#?[A-Za-z0-9]+;)/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
     return s.replace(ALLOWED, "<$1$2>").replace(/\*\*(.+?)\*\*/g, "<b>$1</b>").replace(/`([^`]+)`/g, "<code>$1</code>");
   }
   function tag(t) {
@@ -546,8 +1031,13 @@ var JCore = (function () {
       var fig = el("figure", { "class": "card pfig" });
       var img = el("img", { alt: f.caption || f.label || "Figure from the paper", loading: "lazy" });
       img.src = f.data;
+      img.title = "Click to enlarge";
+      img.addEventListener("click", function () {
+        var ov = el("div", { "class": "lightbox", role: "dialog", "aria-label": "Enlarged figure", onclick: function () { ov.remove(); } }, [el("img", { src: f.data, alt: img.alt })]);
+        document.body.appendChild(ov);
+      });
       fig.appendChild(img);
-      fig.appendChild(el("figcaption", { html: tag("PAPER") + " <b>" + rich(f.label || "Figure") + "</b> reproduced from the paper. " + rich(f.caption || "") }));
+      fig.appendChild(el("figcaption", { html: tag("PAPER") + " <b>" + rich(f.label || "Figure") + "</b> " + (f.source === "pdf" ? "extracted from the paper's PDF" + (f.page ? ", page " + f.page : "") : "reproduced from the paper") + ". " + rich(f.caption || "") }));
       $("figs").appendChild(fig);
     });
     [["what", "What is this?"], ["why", "Why does it matter?"], ["change", "What can I change?"], ["watch", "What should I watch?"]].forEach(function (p) {
@@ -590,7 +1080,7 @@ var JCore = (function () {
     });
     // limitation
     var L = SPEC.limitation || {};
-    var lk = (L.kind || "limitation").toLowerCase();
+    var lk = String(L.kind || "limitation").toLowerCase();
     var lbox = $("limitation");
     lbox.appendChild(el("h3", { html: (lk.indexOf("mis") >= 0 ? "Common misconception: " : "Assumption / limitation: ") + rich(L.title) }));
     lbox.appendChild(el("p", { html: "<b>" + (lk.indexOf("mis") >= 0 ? "MISCONCEPTION" : "ASSUMPTION") + ":</b> " + rich(L.claim) }));
@@ -674,7 +1164,7 @@ var JCore = (function () {
     box.innerHTML = "";
     (SPEC.controls || []).forEach(function (c) {
       var wrap = el("div", { "class": "ctrl", id: "ctrl-" + c.id });
-      var head = el("label", { "class": "cl", html: rich(c.label || c.id) });
+      var head = el("label", { "class": "cl" }, [el("span", { html: rich(c.label || c.id) })]);
       wrap.appendChild(head);
       if (c.type === "slider") {
         var out = el("output", { "class": "cv", id: "cv-" + c.id });
@@ -809,11 +1299,19 @@ var JCore = (function () {
     });
   }
   var W = 560;
+  /* tick labels with just enough precision for the tick spacing (no "1.00e-3, 1.00e-3, ...") */
+  function tickFmt(v, step) {
+    if (Math.abs(v) < step * 1e-6) return "0";
+    var sig = Math.floor(Math.log10(Math.abs(v))) - Math.floor(Math.log10(step)) + 1;
+    if (Math.abs(v) >= 1e5 || Math.abs(v) < 1e-3) return v.toExponential(Math.max(0, Math.min(6, sig - 1)));
+    var d = Math.max(0, -Math.floor(Math.log10(step)) + (step / Math.pow(10, Math.floor(Math.log10(step))) % 1 ? 1 : 0));
+    return String(Number(v.toFixed(Math.min(8, d))));
+  }
   function axes(g, x0, y0, w, h, yr, ylabel, xlabel) {
     for (var t = yr.lo; t <= yr.hi + yr.step * 1e-6; t += yr.step) {
       var y = y0 + h - (t - yr.lo) / (yr.hi - yr.lo) * h;
       g.appendChild(svg("line", { x1: x0, x2: x0 + w, y1: y, y2: y, "class": "grid" }));
-      g.appendChild(svg("text", { x: x0 - 6, y: y + 4, "text-anchor": "end", "class": "tick" }, fmt(t, 3)));
+      g.appendChild(svg("text", { x: x0 - 6, y: y + 4, "text-anchor": "end", "class": "tick" }, tickFmt(t, yr.step)));
     }
     g.appendChild(svg("line", { x1: x0, x2: x0, y1: y0, y2: y0 + h, "class": "axis" }));
     if (ylabel) g.appendChild(svg("text", { x: 12, y: y0 + h / 2, transform: "rotate(-90 12 " + (y0 + h / 2) + ")", "text-anchor": "middle", "class": "alabel" }, ylabel));
@@ -891,7 +1389,7 @@ var JCore = (function () {
     var s = svg("svg", { viewBox: "0 0 " + W + " " + H, "class": "chart", role: "img", "aria-label": v.title || "line chart" });
     axes(s, x0, y0, w, h, yr, v.ylabel, v.xlabel);
     var xr = niceRange(xmin, xmax);
-    for (var t = xr.lo; t <= xr.hi + 1e-9; t += xr.step) { if (t < xmin - 1e-9 || t > xmax + 1e-9) continue; s.appendChild(svg("text", { x: X(t), y: y0 + h + 16, "text-anchor": "middle", "class": "tick" }, fmt(t, 3))); }
+    for (var t = xr.lo; t <= xr.hi + 1e-9; t += xr.step) { if (t < xmin - 1e-9 || t > xmax + 1e-9) continue; s.appendChild(svg("text", { x: X(t), y: y0 + h + 16, "text-anchor": "middle", "class": "tick" }, tickFmt(t, xr.step))); }
     s.appendChild(svg("line", { x1: x0, x2: x0 + w, y1: y0 + h, y2: y0 + h, "class": "axis" }));
     hlines.forEach(function (l) { if (!isFinite(l.v)) return; s.appendChild(svg("line", { x1: x0, x2: x0 + w, y1: Y(l.v), y2: Y(l.v), "class": "refl" })); s.appendChild(svg("text", { x: x0 + w - 4, y: Y(l.v) - 4, "text-anchor": "end", "class": "rl" }, (l.label || "") + " " + fmt(l.v))); });
     vlines.forEach(function (l) { if (!isFinite(l.v)) return; s.appendChild(svg("line", { x1: X(l.v), x2: X(l.v), y1: y0, y2: y0 + h, "class": "refl" })); s.appendChild(svg("text", { x: X(l.v) + 4, y: y0 + h - 6, "class": "rl" }, (l.label || "") + " = " + fmt(l.v))); });
@@ -1009,7 +1507,7 @@ var JCore = (function () {
     var s = svg("svg", { viewBox: "0 0 " + W + " " + H, "class": "chart", role: "img", "aria-label": v.title || "scatter" });
     s.appendChild(svg("defs", {})).innerHTML = '<marker id="ah-' + v._id + '" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0L10,5L0,10z" fill="currentColor"/></marker>';
     axes(s, x0, y0, w, h, yr, v.ylabel, v.xlabel);
-    for (var t = xr.lo; t <= xr.hi + 1e-9; t += xr.step) s.appendChild(svg("text", { x: X(t), y: y0 + h + 16, "text-anchor": "middle", "class": "tick" }, fmt(t, 3)));
+    for (var t = xr.lo; t <= xr.hi + 1e-9; t += xr.step) s.appendChild(svg("text", { x: X(t), y: y0 + h + 16, "text-anchor": "middle", "class": "tick" }, tickFmt(t, xr.step)));
     s.appendChild(svg("line", { x1: x0, x2: x0 + w, y1: Y(Math.max(yr.lo, Math.min(yr.hi, 0))), y2: Y(Math.max(yr.lo, Math.min(yr.hi, 0))), "class": "axis" }));
     segs.forEach(function (sg) { s.appendChild(svg("line", { x1: X(sg[0]), y1: Y(sg[1]), x2: X(sg[2]), y2: Y(sg[3]), "class": "seg" })); });
     var labs = labelsFor(v.labels, pts.length);
@@ -1111,17 +1609,19 @@ var JCore = (function () {
     var changed = state.prev ? C.changedKeys(state.prev, state.out) : [];
     renderReadouts(changed);
     renderStageValues();
+    if (state.prev && changed.length && window.JBG) JBG.pulse(state.animating ? .15 : .5);
     drawViews();
     whyPanel(changed);
     renderChecks();
     if ($("inspect").dataset.stage) inspect($("inspect").dataset.stage);
   }
 
+  function safe(name, fn) { try { fn(); } catch (e) { if (window.console) console.warn("Journalio: section '" + name + "' skipped: " + e.message); } }
   function init() {
-    renderStatic();
-    renderMap();
+    safe("static", renderStatic);
+    safe("map", renderMap);
     renderControls();
-    renderViewShells();
+    safe("views", renderViewShells);
     $("reset").addEventListener("click", function () { state.inp = C.fixInputs(SPEC, {}); state.lastControl = "__preset"; state.lastOld = "defaults (reset)"; renderControls(); update(); });
     if (comp.errors.length) { $("runerr").style.display = "block"; $("runerr").textContent = comp.errors.join("; "); }
     update();

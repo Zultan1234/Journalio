@@ -25,7 +25,7 @@
   var ALLOWED = /&lt;(\/?)(sub|sup|b|i|em|strong|code|br|u|small)\s*\/?&gt;/g;
   function rich(s) {
     if (s === undefined || s === null) return "";
-    s = String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+    s = String(s).replace(/&(?!#?[A-Za-z0-9]+;)/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
     return s.replace(ALLOWED, "<$1$2>").replace(/\*\*(.+?)\*\*/g, "<b>$1</b>").replace(/`([^`]+)`/g, "<code>$1</code>");
   }
   function tag(t) {
@@ -104,8 +104,13 @@
       var fig = el("figure", { "class": "card pfig" });
       var img = el("img", { alt: f.caption || f.label || "Figure from the paper", loading: "lazy" });
       img.src = f.data;
+      img.title = "Click to enlarge";
+      img.addEventListener("click", function () {
+        var ov = el("div", { "class": "lightbox", role: "dialog", "aria-label": "Enlarged figure", onclick: function () { ov.remove(); } }, [el("img", { src: f.data, alt: img.alt })]);
+        document.body.appendChild(ov);
+      });
       fig.appendChild(img);
-      fig.appendChild(el("figcaption", { html: tag("PAPER") + " <b>" + rich(f.label || "Figure") + "</b> reproduced from the paper. " + rich(f.caption || "") }));
+      fig.appendChild(el("figcaption", { html: tag("PAPER") + " <b>" + rich(f.label || "Figure") + "</b> " + (f.source === "pdf" ? "extracted from the paper's PDF" + (f.page ? ", page " + f.page : "") : "reproduced from the paper") + ". " + rich(f.caption || "") }));
       $("figs").appendChild(fig);
     });
     [["what", "What is this?"], ["why", "Why does it matter?"], ["change", "What can I change?"], ["watch", "What should I watch?"]].forEach(function (p) {
@@ -148,7 +153,7 @@
     });
     // limitation
     var L = SPEC.limitation || {};
-    var lk = (L.kind || "limitation").toLowerCase();
+    var lk = String(L.kind || "limitation").toLowerCase();
     var lbox = $("limitation");
     lbox.appendChild(el("h3", { html: (lk.indexOf("mis") >= 0 ? "Common misconception: " : "Assumption / limitation: ") + rich(L.title) }));
     lbox.appendChild(el("p", { html: "<b>" + (lk.indexOf("mis") >= 0 ? "MISCONCEPTION" : "ASSUMPTION") + ":</b> " + rich(L.claim) }));
@@ -232,7 +237,7 @@
     box.innerHTML = "";
     (SPEC.controls || []).forEach(function (c) {
       var wrap = el("div", { "class": "ctrl", id: "ctrl-" + c.id });
-      var head = el("label", { "class": "cl", html: rich(c.label || c.id) });
+      var head = el("label", { "class": "cl" }, [el("span", { html: rich(c.label || c.id) })]);
       wrap.appendChild(head);
       if (c.type === "slider") {
         var out = el("output", { "class": "cv", id: "cv-" + c.id });
@@ -367,11 +372,19 @@
     });
   }
   var W = 560;
+  /* tick labels with just enough precision for the tick spacing (no "1.00e-3, 1.00e-3, ...") */
+  function tickFmt(v, step) {
+    if (Math.abs(v) < step * 1e-6) return "0";
+    var sig = Math.floor(Math.log10(Math.abs(v))) - Math.floor(Math.log10(step)) + 1;
+    if (Math.abs(v) >= 1e5 || Math.abs(v) < 1e-3) return v.toExponential(Math.max(0, Math.min(6, sig - 1)));
+    var d = Math.max(0, -Math.floor(Math.log10(step)) + (step / Math.pow(10, Math.floor(Math.log10(step))) % 1 ? 1 : 0));
+    return String(Number(v.toFixed(Math.min(8, d))));
+  }
   function axes(g, x0, y0, w, h, yr, ylabel, xlabel) {
     for (var t = yr.lo; t <= yr.hi + yr.step * 1e-6; t += yr.step) {
       var y = y0 + h - (t - yr.lo) / (yr.hi - yr.lo) * h;
       g.appendChild(svg("line", { x1: x0, x2: x0 + w, y1: y, y2: y, "class": "grid" }));
-      g.appendChild(svg("text", { x: x0 - 6, y: y + 4, "text-anchor": "end", "class": "tick" }, fmt(t, 3)));
+      g.appendChild(svg("text", { x: x0 - 6, y: y + 4, "text-anchor": "end", "class": "tick" }, tickFmt(t, yr.step)));
     }
     g.appendChild(svg("line", { x1: x0, x2: x0, y1: y0, y2: y0 + h, "class": "axis" }));
     if (ylabel) g.appendChild(svg("text", { x: 12, y: y0 + h / 2, transform: "rotate(-90 12 " + (y0 + h / 2) + ")", "text-anchor": "middle", "class": "alabel" }, ylabel));
@@ -449,7 +462,7 @@
     var s = svg("svg", { viewBox: "0 0 " + W + " " + H, "class": "chart", role: "img", "aria-label": v.title || "line chart" });
     axes(s, x0, y0, w, h, yr, v.ylabel, v.xlabel);
     var xr = niceRange(xmin, xmax);
-    for (var t = xr.lo; t <= xr.hi + 1e-9; t += xr.step) { if (t < xmin - 1e-9 || t > xmax + 1e-9) continue; s.appendChild(svg("text", { x: X(t), y: y0 + h + 16, "text-anchor": "middle", "class": "tick" }, fmt(t, 3))); }
+    for (var t = xr.lo; t <= xr.hi + 1e-9; t += xr.step) { if (t < xmin - 1e-9 || t > xmax + 1e-9) continue; s.appendChild(svg("text", { x: X(t), y: y0 + h + 16, "text-anchor": "middle", "class": "tick" }, tickFmt(t, xr.step))); }
     s.appendChild(svg("line", { x1: x0, x2: x0 + w, y1: y0 + h, y2: y0 + h, "class": "axis" }));
     hlines.forEach(function (l) { if (!isFinite(l.v)) return; s.appendChild(svg("line", { x1: x0, x2: x0 + w, y1: Y(l.v), y2: Y(l.v), "class": "refl" })); s.appendChild(svg("text", { x: x0 + w - 4, y: Y(l.v) - 4, "text-anchor": "end", "class": "rl" }, (l.label || "") + " " + fmt(l.v))); });
     vlines.forEach(function (l) { if (!isFinite(l.v)) return; s.appendChild(svg("line", { x1: X(l.v), x2: X(l.v), y1: y0, y2: y0 + h, "class": "refl" })); s.appendChild(svg("text", { x: X(l.v) + 4, y: y0 + h - 6, "class": "rl" }, (l.label || "") + " = " + fmt(l.v))); });
@@ -567,7 +580,7 @@
     var s = svg("svg", { viewBox: "0 0 " + W + " " + H, "class": "chart", role: "img", "aria-label": v.title || "scatter" });
     s.appendChild(svg("defs", {})).innerHTML = '<marker id="ah-' + v._id + '" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0L10,5L0,10z" fill="currentColor"/></marker>';
     axes(s, x0, y0, w, h, yr, v.ylabel, v.xlabel);
-    for (var t = xr.lo; t <= xr.hi + 1e-9; t += xr.step) s.appendChild(svg("text", { x: X(t), y: y0 + h + 16, "text-anchor": "middle", "class": "tick" }, fmt(t, 3)));
+    for (var t = xr.lo; t <= xr.hi + 1e-9; t += xr.step) s.appendChild(svg("text", { x: X(t), y: y0 + h + 16, "text-anchor": "middle", "class": "tick" }, tickFmt(t, xr.step)));
     s.appendChild(svg("line", { x1: x0, x2: x0 + w, y1: Y(Math.max(yr.lo, Math.min(yr.hi, 0))), y2: Y(Math.max(yr.lo, Math.min(yr.hi, 0))), "class": "axis" }));
     segs.forEach(function (sg) { s.appendChild(svg("line", { x1: X(sg[0]), y1: Y(sg[1]), x2: X(sg[2]), y2: Y(sg[3]), "class": "seg" })); });
     var labs = labelsFor(v.labels, pts.length);
@@ -669,17 +682,19 @@
     var changed = state.prev ? C.changedKeys(state.prev, state.out) : [];
     renderReadouts(changed);
     renderStageValues();
+    if (state.prev && changed.length && window.JBG) JBG.pulse(state.animating ? .15 : .5);
     drawViews();
     whyPanel(changed);
     renderChecks();
     if ($("inspect").dataset.stage) inspect($("inspect").dataset.stage);
   }
 
+  function safe(name, fn) { try { fn(); } catch (e) { if (window.console) console.warn("Journalio: section '" + name + "' skipped: " + e.message); } }
   function init() {
-    renderStatic();
-    renderMap();
+    safe("static", renderStatic);
+    safe("map", renderMap);
     renderControls();
-    renderViewShells();
+    safe("views", renderViewShells);
     $("reset").addEventListener("click", function () { state.inp = C.fixInputs(SPEC, {}); state.lastControl = "__preset"; state.lastOld = "defaults (reset)"; renderControls(); update(); });
     if (comp.errors.length) { $("runerr").style.display = "block"; $("runerr").textContent = comp.errors.join("; "); }
     update();

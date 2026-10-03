@@ -94,12 +94,12 @@ var JCore = (function () {
     var bodies = [];
     if (FN_RE.test(src)) bodies.push("var __f = (" + src + ");\nreturn __f(" + args.join(", ") + ");");
     bodies.push(src);
-    var firstErr = null;
+    var firstErr = null, lastErr = null;
     for (var i = 0; i < bodies.length; i++) {
       try { return new Function(args.join(","), '"use strict";\n' + bodies[i]); }
-      catch (e) { if (!firstErr) firstErr = e; }
+      catch (e) { if (!firstErr) firstErr = e; lastErr = e; }
     }
-    errors.push(label + ": syntax error: " + (firstErr && firstErr.message));
+    errors.push(label + ": syntax error: " + (lastErr && lastErr.message) + (bodies.length > 1 && firstErr !== lastErr ? " (as function: " + firstErr.message + ")" : ""));
     return null;
   }
 

@@ -6,7 +6,7 @@ import time
 
 import requests
 
-URL = os.environ.get("JOURNALIO_API_URL", "https://openrouter.ai/api/v1/chat/completions")  # override only for offline tests
+URL = "https://openrouter.ai/api/v1/chat/completions"  # all model calls go to OpenRouter
 MAX_REQUESTS = 10
 MAX_COMPLETION_TOKENS = 30000
 DEADLINE_S = 570  # hard limit is 600 s; keep a safety margin

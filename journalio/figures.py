@@ -1,59 +1,107 @@
-"""Best-effort retrieval of the paper's OWN figure(s) relevant to the brief, embedded as data URIs.
+"""Paper figures for the page, extracted from the paper's PDF itself (see pdffigs.py). 0 tokens.
 
-Runs in a background thread while the LLM call is in flight (zero added latency, zero tokens).
-Works when the paper's HTML is reachable (e.g. arXiv HTML); if the network is restricted it fails
-fast and the page simply relies on its live charts and the theme illustration."""
-import base64
-import html as htmllib
+PDF sources, in order:
+  1. a local PDF: case.json field "pdf" (path relative to case.json), or a PDF file next to case.json
+  2. the source URL: direct PDF links, arXiv (abs/html -> pdf), IEEE Xplore stamp pages (resolves the
+     embedded PDF; needs a network/IP with IEEE access), DOI links that redirect to a PDF.
+Runs in a background thread while the LLM call is in flight, so it adds no latency. If no PDF can be
+obtained (e.g. network limited to OpenRouter during assessment) it fails fast and the page relies on
+its live charts and theme illustration.
+"""
+import glob
+import os
 import re
 import threading
 import time
 from urllib.parse import urljoin
 
-MAX_IMG_BYTES = 700_000
-MAX_FIGS = 2
-DEADLINE_S = 14
-STOP = set("the a an of and or to in on for with by is are be as at from that this it its into using use show let learner "
-           "learners their how what why which can should must about between explain small each two one".split())
+from . import pdffigs
+
+DEADLINE_S = 20
+MAX_PDF_BYTES = 40_000_000
+UA = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) journalio/1.0", "Accept": "application/pdf,text/html;q=0.9,*/*;q=0.8"}
+
+_cache = {}
 
 
-def _arxiv_html(url):
-    m = re.search(r"arxiv\.org/(?:abs|pdf|html)/([0-9]{4}\.[0-9]{4,5}|[a-z\-]+/[0-9]{7})(v[0-9]+)?", url or "")
-    if not m:
-        return None
-    return "https://arxiv.org/html/%s%s" % (m.group(1), m.group(2) or "")
-
-
-def _text(s):
-    s = re.sub(r"(?s)<math[^>]*alttext=\"([^\"]*)\"[^>]*>.*?</math>", r" \1 ", s)
-    return re.sub(r"\s+", " ", htmllib.unescape(re.sub(r"(?s)<[^>]+>", " ", s))).strip()
-
-
-def find_figures(page_html, page_url, focus, excerpt):
-    """Return candidate figures [{src, caption, label, score}] sorted by relevance."""
-    want_nums = set(re.findall(r"\b(?:fig(?:ure)?\.?)\s*(\d+)", (focus + " " + excerpt).lower()))
-    words = {w for w in re.findall(r"[a-z][a-z0-9\-]{2,}", focus.lower()) if w not in STOP}
+def local_pdf(case, case_dir):
     cands = []
-    for blk in re.findall(r"(?is)<figure\b[^>]*>(.*?)</figure>", page_html):
-        imgs = re.findall(r"(?is)<img\b[^>]*\bsrc=\"([^\"]+)\"", blk)
-        if not imgs:
+    if case.get("pdf"):
+        cands.append(case["pdf"] if os.path.isabs(case["pdf"]) else os.path.join(case_dir or ".", case["pdf"]))
+    url = case.get("source_url", "")
+    if url.lower().endswith(".pdf") and not url.lower().startswith("http"):
+        cands.append(url[7:] if url.startswith("file://") else url)
+    if case_dir:
+        cands += sorted(glob.glob(os.path.join(case_dir, "*.pdf")))
+    for p in cands:
+        if os.path.isfile(p):
+            return p
+    return None
+
+
+def _pdf_urls(url):
+    m = re.search(r"arxiv\.org/(?:abs|pdf|html)/([0-9]{4}\.[0-9]{4,5}|[a-z\-]+/[0-9]{7})(v[0-9]+)?", url or "")
+    if m:
+        return ["https://arxiv.org/pdf/%s%s" % (m.group(1), m.group(2) or "")]
+    m = re.search(r"ieeexplore\.ieee\.org/.*?arnumber=(\d+)", url or "") or re.search(r"ieeexplore\.ieee\.org/document/(\d+)", url or "")
+    if m:
+        a = m.group(1)
+        return [url, "https://ieeexplore.ieee.org/stampPDF/getPDF.jsp?tp=&arnumber=%s" % a,
+                "https://ieeexplore.ieee.org/stamp/stamp.jsp?tp=&arnumber=%s" % a]
+    return [url] if url.startswith("http") else []
+
+
+def fetch_pdf(url, trace, deadline):
+    """Download a PDF, following one level of HTML wrapper (iframe/embed/meta citation_pdf_url)."""
+    import requests
+    sess = requests.Session()
+    tried = set()
+    queue = _pdf_urls(url)
+    while queue and time.time() < deadline:
+        u = queue.pop(0)
+        if u in tried:
             continue
-        cap_m = re.search(r"(?is)<figcaption\b[^>]*>(.*?)</figcaption>", blk)
-        cap = _text(cap_m.group(1)) if cap_m else ""
-        num_m = re.search(r"(?i)\b(?:figure|fig\.?)\s*(\d+)", cap)
-        num = num_m.group(1) if num_m else None
-        capl = cap.lower()
-        score = 10 if num and num in want_nums else 0
-        score += sum(1 for w in words if w in capl)
-        cap_short = re.sub(r"(?i)^\s*(?:figure|fig\.?)\s*\d+\s*[:.]\s*", "", cap)
-        cands.append({"src": urljoin(page_url, imgs[0]), "caption": cap_short[:260], "label": ("Figure " + num) if num else "Figure", "score": score})
-    cands.sort(key=lambda c: -c["score"])
-    return [c for c in cands if c["score"] >= 3][:MAX_FIGS]
+        tried.add(u)
+        try:
+            r = sess.get(u, headers=UA, timeout=(3, max(2, min(10, deadline - time.time()))), allow_redirects=True)
+        except Exception as e:
+            trace.log("figures", "pdf_download", "failed (%s)" % type(e).__name__, url=u)
+            continue
+        body = r.content[:MAX_PDF_BYTES]
+        if body[:5] == b"%PDF-":
+            trace.log("figures", "pdf_download", "ok", url=u, bytes=len(body))
+            return body
+        if r.status_code == 200 and b"<" in body[:2000]:
+            html = body.decode("utf-8", "replace")
+            for pat in (r'<iframe[^>]+src="([^"]+)"', r'<embed[^>]+src="([^"]+)"', r'citation_pdf_url"\s+content="([^"]+)"',
+                        r'"(https?://[^"]+\.pdf[^"]*)"', r'"(/stampPDF/getPDF\.jsp[^"]*)"'):
+                for m in re.findall(pat, html, re.I):
+                    queue.append(urljoin(r.url, m.replace("&amp;", "&")))
+        trace.log("figures", "pdf_download", "no PDF at this URL (HTTP %d)" % r.status_code, url=u)
+    return None
+
+
+def get_pdf(case, case_dir, trace, deadline):
+    key = (case.get("source_url"), case.get("pdf"), case_dir)
+    if key in _cache:
+        return _cache[key]
+    data, origin = None, None
+    p = local_pdf(case, case_dir)
+    if p:
+        with open(p, "rb") as f:
+            data = f.read()
+        origin = os.path.basename(p)
+        trace.log("figures", "pdf_local", "ok", file=origin, bytes=len(data))
+    elif case.get("source_url", "").startswith("http"):
+        data = fetch_pdf(case["source_url"], trace, deadline)
+        origin = case["source_url"]
+    _cache[key] = (data, origin)
+    return data, origin
 
 
 class FigureFetcher:
-    def __init__(self, case, excerpt, trace):
-        self.case, self.excerpt, self.trace = case, excerpt, trace
+    def __init__(self, case, excerpt, trace, case_dir=None):
+        self.case, self.excerpt, self.trace, self.case_dir = case, excerpt, trace, case_dir
         self.result = []
         self.t0 = time.time()
         self.thread = threading.Thread(target=self._run, daemon=True)
@@ -62,41 +110,25 @@ class FigureFetcher:
         self.thread.start()
         return self
 
-    def _left(self):
-        return DEADLINE_S - (time.time() - self.t0)
-
     def _run(self):
-        try:
-            import requests
-        except ImportError:
-            return
-        url = self.case.get("source_url", "")
-        page_url = _arxiv_html(url) or (url if url.startswith("http") and not url.lower().endswith(".pdf") else None)
-        if not page_url:
-            self.trace.log("figures", "skip", "no HTML version of the source (e.g. PDF only)")
+        if not pdffigs.available():
+            self.trace.log("figures", "skip", "PyMuPDF not installed")
             return
         try:
-            r = requests.get(page_url, timeout=(2.5, 6), headers={"User-Agent": "journalio/1.0"})
-            r.raise_for_status()
-            cands = find_figures(r.text, r.url, self.case.get("focus", ""), self.excerpt)
-            self.trace.log("figures", "scan_page", "%d relevant figure(s)" % len(cands), page=page_url,
-                           candidates=[{"label": c["label"], "score": c["score"]} for c in cands])
-            out = []
-            for c in cands:
-                if self._left() < 2:
-                    break
-                im = requests.get(c["src"], timeout=(2.5, min(6, self._left())), headers={"User-Agent": "journalio/1.0"})
-                ctype = im.headers.get("content-type", "").split(";")[0].strip()
-                if im.status_code != 200 or not ctype.startswith("image/") or len(im.content) > MAX_IMG_BYTES:
-                    continue
-                out.append({"data": "data:%s;base64,%s" % (ctype, base64.b64encode(im.content).decode("ascii")),
-                            "caption": c["caption"], "label": c["label"], "url": page_url})
-            self.result = out
-            self.trace.log("figures", "embed", "%d figure(s)" % len(out), bytes=sum(len(f["data"]) for f in out))
+            data, origin = get_pdf(self.case, self.case_dir, self.trace, self.t0 + DEADLINE_S)
+            if not data:
+                self.trace.log("figures", "skip", "no PDF available (offline or access-restricted)")
+                return
+            figs, found = pdffigs.extract(data, self.case.get("focus", ""), self.excerpt)
+            for f in figs:
+                f["url"] = origin
+            self.result = figs
+            self.trace.log("figures", "extract_from_pdf", "%d of %d captioned figure(s) embedded" % (len(figs), len(found)),
+                           found=found, embedded=[{"label": f["label"], "page": f["page"], "bytes": f["bytes"]} for f in figs])
         except Exception as e:
-            self.trace.log("figures", "fetch", "unavailable (%s)" % type(e).__name__)
+            self.trace.log("figures", "extract_from_pdf", "failed (%s: %s)" % (type(e).__name__, str(e)[:120]))
 
-    def collect(self, wait=1.0):
+    def collect(self, wait=1.5):
         self.thread.join(timeout=max(0.0, wait))
         if self.thread.is_alive():
             self.trace.log("figures", "collect", "not ready, skipped")
